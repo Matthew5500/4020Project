@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pay Now • Aurora Auctions</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  
+<header class="site">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Aurora Auctions</h1>
+    </div>
+    <nav>
+      <a href="/index.html">Home</a>
+      <a href="/pages/browse.html">Browse</a>
+      <a href="/pages/sell.html">Sell</a>
+      <a href="/pages/profile.html">Profile</a>
+      <a href="/pages/login.html" id="loginLink">Sign In</a>
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
+    </nav>
+  </div>
+</header>
+<script type="module">
+import {DemoAPI, navActive} from '/assets/js/utils.js';
+navActive();
+const u = DemoAPI.user();
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+if(u){
+  loginLink.textContent = u.username;
+  loginLink.href = '/pages/profile.html';
+  logoutBtn.style.display='inline-flex';
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
+}
+</script>
+
+  <main class="container">
+    <section class="card" style="max-width:720px;margin:0 auto">
+      <h2>Pay Now</h2>
+      <div id="summary"></div>
+      <div class="grid cols-2">
+        <div>
+          <h3>Shipping</h3>
+          <div class="input">
+            <label>Address</label>
+            <textarea id="addr" rows="4"></textarea>
+          </div>
+          <div class="input">
+            <label>Shipping Speed</label>
+            <select id="ship">
+              <option value="standard">Standard</option>
+              <option value="expedited">Expedited (+ cost)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <h3>Card</h3>
+          <div class="input"><label>Card Number</label><input id="cc" placeholder="4111 1111 1111 1111"></div>
+          <div class="grid cols-2">
+            <div class="input"><label>Expiry</label><input id="exp" placeholder="MM/YY"></div>
+            <div class="input"><label>CVC</label><input id="cvc" placeholder="123"></div>
+          </div>
+          <button class="btn primary" id="payBtn">Submit Payment</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+<footer>
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
+</footer>
+
+  <script type="module">
+    import {{$, DemoAPI, formatCurrency}} from '/assets/js/utils.js';
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    let item, price, shipStd, shipExp;
+    async function init(){
+      const user = DemoAPI.user();
+      item = await DemoAPI.item(id);
+      if(!item){ $('#summary').innerHTML='<p>Item not found.</p>'; return; }
+      shipStd = item.shipCost||20; shipExp = item.shipCostExp||40;
+      price = item.winPrice || item.currentPrice || item.priceNow;
+      $('#addr').value = user?.address || '';
+      renderSummary();
+      $('#ship').addEventListener('change', renderSummary);
+      $('#payBtn').addEventListener('click', pay);
+    }
+    function renderSummary(){
+      const ship = $('#ship').value==='expedited' ? shipExp : shipStd;
+      const total = price + ship;
+      $('#summary').innerHTML = `
+        <p>Item: <strong>${item.title}</strong></p>
+        <p>Price: <strong>${formatCurrency(price)}</strong></p>
+        <p>Shipping: <strong>${formatCurrency(ship)}</strong></p>
+        <p>Total: <strong>${formatCurrency(total)}</strong></p>
+      `;
+    }
+    function pay(){
+      if(!$('#cc').value || !$('#exp').value || !$('#cvc').value){ alert('Complete card fields'); return; }
+      // Normally POST to middle-tier payment service; we simulate success:
+      localStorage.setItem('LAST_RECEIPT', JSON.stringify({
+        id: crypto.randomUUID(),
+        itemId: item.id, title: item.title, price,
+        ship: $('#ship').value==='expedited' ? shipExp : shipStd,
+        total: price + ( $('#ship').value==='expedited' ? shipExp : shipStd ),
+        days: item.shippingDays || 5,
+        when: new Date().toISOString()
+      }));
+      location.href='/pages/receipt.html';
+    }
+    init();
+  </script>
+</body>
+</html>

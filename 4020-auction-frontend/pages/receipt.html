@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Receipt • Aurora Auctions</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  
+<header class="site">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Aurora Auctions</h1>
+    </div>
+    <nav>
+      <a href="/index.html">Home</a>
+      <a href="/pages/browse.html">Browse</a>
+      <a href="/pages/sell.html">Sell</a>
+      <a href="/pages/profile.html">Profile</a>
+      <a href="/pages/login.html" id="loginLink">Sign In</a>
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
+    </nav>
+  </div>
+</header>
+<script type="module">
+import {DemoAPI, navActive} from '/assets/js/utils.js';
+navActive();
+const u = DemoAPI.user();
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+if(u){
+  loginLink.textContent = u.username;
+  loginLink.href = '/pages/profile.html';
+  logoutBtn.style.display='inline-flex';
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
+}
+</script>
+
+  <main class="container">
+    <section class="card" style="max-width:720px;margin:0 auto">
+      <h2>Receipt</h2>
+      <div id="r"></div>
+      <a class="btn" href="/pages/browse.html">Back to Browse</a>
+    </section>
+  </main>
+  
+<footer>
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
+</footer>
+
+  <script type="module">
+    import {{$, formatCurrency}} from '/assets/js/utils.js';
+    const rec = JSON.parse(localStorage.getItem('LAST_RECEIPT')||'null');
+    if(!rec){ $('#r').innerHTML = '<p>No receipt to display.</p>'; }
+    else{
+      $('#r').innerHTML = `
+        <p><strong>Receipt #</strong> ${rec.id}</p>
+        <p><strong>Item</strong> ${rec.title}</p>
+        <p><strong>Item Price</strong> ${formatCurrency(rec.price)}</p>
+        <p><strong>Shipping</strong> ${formatCurrency(rec.ship)}</p>
+        <p><strong>Total Paid</strong> ${formatCurrency(rec.total)}</p>
+        <p class="helper">The item will be shipped in <strong>${rec.days} days</strong>.</p>
+        <p class="helper">Timestamp: ${new Date(rec.when).toLocaleString()}</p>
+      `;
+    }
+  </script>
+</body>
+</html>

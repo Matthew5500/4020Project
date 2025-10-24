@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Item • Aurora Auctions</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  
+<header class="site">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Aurora Auctions</h1>
+    </div>
+    <nav>
+      <a href="/index.html">Home</a>
+      <a href="/pages/browse.html">Browse</a>
+      <a href="/pages/sell.html">Sell</a>
+      <a href="/pages/profile.html">Profile</a>
+      <a href="/pages/login.html" id="loginLink">Sign In</a>
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
+    </nav>
+  </div>
+</header>
+<script type="module">
+import {DemoAPI, navActive} from '/assets/js/utils.js';
+navActive();
+const u = DemoAPI.user();
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+if(u){
+  loginLink.textContent = u.username;
+  loginLink.href = '/pages/profile.html';
+  logoutBtn.style.display='inline-flex';
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
+}
+</script>
+
+  <main class="container">
+    <section class="card" id="wrap"></section>
+  </main>
+  
+<footer>
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
+</footer>
+
+  <script type="module">
+    import {{$,$all, DemoAPI, requireAuth, formatCurrency, remaining}} from '/assets/js/utils.js';
+    const user = requireAuth();
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const wrap = document.getElementById('wrap');
+    let item;
+    async function load(){
+      item = await DemoAPI.item(id);
+      if(!item){ wrap.innerHTML = '<p>Item not found.</p>'; return; }
+      const isForward = item.auctionType==='forward';
+      const price = isForward ? item.currentPrice : item.priceNow;
+      wrap.innerHTML = `
+        <div class="grid cols-2">
+          <div><img src="${item.image}" alt="" style="width:100%;height:auto;border-radius:12px;border:1px solid #253043"></div>
+          <div>
+            <h2>${item.title}</h2>
+            <p class="helper">Auction Type: <strong>${item.auctionType}</strong></p>
+            <p>Current Price: <strong>${formatCurrency(price)}</strong></p>
+            ${isForward
+              ? `<p>Ends: <span class="badge warn timer" data-ends="${item.endsAt}"></span></p>
+                 <div class="input"><label>Your Bid</label>
+                   <input id="bidAmt" type="number" min="${item.currentPrice + item.minIncrement}" step="1" value="${item.currentPrice + item.minIncrement}">
+                   <div class="helper">Min increment ${formatCurrency(item.minIncrement)}</div>
+                 </div>
+                 <button class="btn primary" id="bidBtn">Place Bid</button>`
+              : `<div class="input"><label>Current Price</label>
+                   <input disabled value="${formatCurrency(item.priceNow)}">
+                 </div>
+                 <button class="btn success" id="buyBtn">Buy Now</button>
+                 <p class="helper">Dutch price drops every ${item.dropEverySec}s by ${formatCurrency(item.step)} until the floor of ${formatCurrency(item.floor)}.</p>`}
+          </div>
+        </div>
+      `;
+      if(isForward){
+        $('#bidBtn').addEventListener('click', async () => {
+          try{
+            const amt = Number($('#bidAmt').value);
+            await DemoAPI.bidForward(item.id, amt);
+            alert('Bid placed!');
+            load();
+          }catch(e){ alert(e.message); }
+        });
+      }else{
+        $('#buyBtn').addEventListener('click', async () => {
+          try{
+            await DemoAPI.buyNowDutch(item.id);
+            location.href = '/pages/pay.html?id='+item.id;
+          }catch(e){ alert(e.message); }
+        });
+      }
+      tick();
+    }
+    function tick(){
+      const t = $('.timer');
+      if(!t) return;
+      const ends = Number(t.dataset.ends);
+      const left = Math.max(0, ends - Date.now());
+      t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended';
+      if(left){
+        requestAnimationFrame(tick);
+      }else{
+        setTimeout(()=>location.href='/pages/pay.html?id='+item.id, 800);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

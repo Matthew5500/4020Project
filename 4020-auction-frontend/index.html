@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurora Auctions</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  
+<header class="site">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Aurora Auctions</h1>
+    </div>
+    <nav>
+      <a href="/index.html">Home</a>
+      <a href="/pages/browse.html">Browse</a>
+      <a href="/pages/sell.html">Sell</a>
+      <a href="/pages/profile.html">Profile</a>
+      <a href="/pages/login.html" id="loginLink">Sign In</a>
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
+    </nav>
+  </div>
+</header>
+<script type="module">
+import {DemoAPI, navActive} from '/assets/js/utils.js';
+navActive();
+const u = DemoAPI.user();
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+if(u){
+  loginLink.textContent = u.username;
+  loginLink.href = '/pages/profile.html';
+  logoutBtn.style.display='inline-flex';
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
+}
+</script>
+
+  <main class="container">
+    <div class="grid cols-2">
+      <section class="card">
+        <h2>Welcome</h2>
+        <p class="helper">This is the front-end for your three-tier auction system (ITEC4020). It’s wired for both Forward and Dutch auctions per assignment specs.</p>
+        <ul>
+          <li>Forward: strictly increasing bids with countdown timer.</li>
+          <li>Dutch: decreasing price in steps until someone buys.</li>
+        </ul>
+        <a class="btn primary" href="/pages/browse.html">Start Browsing</a>
+      </section>
+      <section class="card">
+        <h3>Quick Start</h3>
+        <ol>
+          <li>Go to <a href="/pages/login.html">Sign In</a> to create a session.</li>
+          <li>Search and pick an item, then bid or buy.</li>
+          <li>On win, proceed to payment and receive a receipt.</li>
+        </ol>
+        <p class="helper">No middle-tier yet? This demo works with localStorage so you can iterate on UI while the backend is built.</p>
+      </section>
+    </div>
+    <section class="card">
+      <h3>Live Auctions</h3>
+      <div id="items" class="grid cols-3"></div>
+    </section>
+  </main>
+  
+<footer>
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
+</footer>
+
+  <script type="module">
+    import {{$,$all, DemoAPI, formatCurrency, remaining}} from '/assets/js/utils.js';
+    async function load(){
+      const list = await DemoAPI.search('');
+      const wrap = $('#items');
+      wrap.innerHTML = '';
+      list.forEach(it => {
+        const isForward = it.auctionType==='forward';
+        const price = isForward ? it.currentPrice : it.priceNow;
+        const timer = isForward ? '<span class="badge warn timer" data-ends="'+it.endsAt+'"></span>' : '<span class="badge">Dutch</span>';
+        const el = document.createElement('article');
+        el.className = 'card item-card';
+        el.innerHTML = `
+          <img src="${it.image}" alt="Item">
+          <h4>${it.title}</h4>
+          <div class="meta">
+            <div>Price: <strong>${formatCurrency(price)}</strong></div>
+            <div>${timer}</div>
+          </div>
+          <a class="btn" href="/pages/item.html?id=${it.id}">View</a>
+        `;
+        wrap.appendChild(el);
+      });
+      tick();
+    }
+    function tick(){
+      $all('.timer').forEach(t=>{
+        const ends = Number(t.dataset.ends);
+        const left = Math.max(0, ends - Date.now());
+        t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended';
+        if(!left){ t.classList.add('bad'); }
+      });
+      requestAnimationFrame(tick);
+    }
+    load();
+  </script>
+</body>
+</html>
