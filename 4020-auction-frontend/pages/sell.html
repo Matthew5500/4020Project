@@ -1,125 +1,126 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sell • Aurora Auctions</title>
-  <link rel="stylesheet" href="/assets/css/main.css">
-</head>
-<body>
+<!doctype html> <!--Declaration of HTML5 document-->
+<html lang="en"> <!--Root element with language attribute set to English-->
+<head> <!--Head section containing metadata and links to resources-->
+  <meta charset="utf-8"> <!--Character encoding set to UTF-8-->
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!--Viewport settings for responsive design-->
+  <title>Sell • Aurora Auctions</title> <!--Title of the webpage-->
+  <link rel="stylesheet" href="/assets/css/main.css"> <!--Link to external CSS stylesheet for styling-->
+</head> <!--End of head section-->
+<body> <!--Start of body section containing visible content-->
   
-<header class="site">
-  <div class="inner">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <h1>Aurora Auctions</h1>
-    </div>
-    <nav>
-      <a href="/index.html">Home</a>
-      <a href="/pages/browse.html">Browse</a>
-      <a href="/pages/sell.html">Sell</a>
-      <a href="/pages/profile.html">Profile</a>
-      <a href="/pages/login.html" id="loginLink">Sign In</a>
-      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
-    </nav>
-  </div>
-</header>
-<script type="module">
-import {DemoAPI, navActive} from '/assets/js/utils.js';
-navActive();
-const u = DemoAPI.user();
-const loginLink = document.getElementById('loginLink');
-const logoutBtn = document.getElementById('logoutBtn');
-if(u){
-  loginLink.textContent = u.username;
-  loginLink.href = '/pages/profile.html';
-  logoutBtn.style.display='inline-flex';
-  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
-}
-</script>
+<header class="site"> <!--Site-wide header-->
+  <div class="inner"> <!--Layout wrapper for constraining width and adding padding-->
+    <div class="brand"> <!--Grouping for logo and name-->
+      <div class="logo" aria-hidden="true"></div> <!--Decorative logo. aria-hidden="true" informs the screen readers to ignore it as the brand name follows"-->
+      <h1>Aurora Auctions</h1> <!--Site name for branding and SEO-->
+    </div> <!--End of brand grouping-->
+    <nav> <!--Navigation links-->
+      <a href="/index.html">Home</a> <!--Link to home page-->
+      <a href="/pages/browse.html">Browse</a> <!--Link to browse page-->
+      <a href="/pages/sell.html">Sell</a> <!--Link to sell page-->
+      <a href="/pages/profile.html">Profile</a> <!--Link to user profile page-->
+      <a href="/pages/login.html" id="loginLink">Sign In</a> <!--Link to login page with ID for dynamic updates-->
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button> <!--Logout button, hidden by default, shown when user is logged in-->
+    </nav> <!--End of navigation links-->
+  </div> <!--End of layout wrapper-->
+</header> <!--End of site-wide header-->
+<script type="module"> //JavaScript module for handling user authentication and navigation state
+import {DemoAPI, navActive} from '/assets/js/utils.js'; //Importing utility functions from external JS file
+navActive(); //Highlight the active navigation link based on current page
+const u = DemoAPI.user(); //Get the current user information
+const loginLink = document.getElementById('loginLink'); //Get the login link element
+const logoutBtn = document.getElementById('logoutBtn'); //Get the logout button element
+if(u){ //If user is logged in
+  loginLink.textContent = u.username; //Update login link text to show username
+  loginLink.href = '/pages/profile.html'; //Change login link to point to profile page
+  logoutBtn.style.display='inline-flex'; //Show the logout button
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; }); //Add click event to logout button to sign out user and redirect to home page
+} //End of script for user authentication and navigation state
+</script> <!--End of script for user authentication and navigation state-->
 
-  <main class="container">
-    <section class="card" style="max-width:920px;margin:0 auto">
-      <h2>Sell an Item</h2>
-      <div class="grid cols-2">
-        <div>
-          <div class="input"><label>Title</label><input id="title" placeholder="e.g., Classic Watch"></div>
-          <div class="input">
-            <label>Auction Type</label>
-            <select id="type">
-              <option value="forward">Forward</option>
-              <option value="dutch">Dutch</option>
-            </select>
-          </div>
-          <div id="forwardFields">
-            <div class="input"><label>Starting Price</label><input id="startForward" type="number" value="50"></div>
-            <div class="input"><label>Min Increment</label><input id="minInc" type="number" value="5"></div>
-            <div class="input"><label>Duration (minutes)</label><input id="duration" type="number" value="10"></div>
-          </div>
-          <div id="dutchFields" class="hidden">
-            <div class="input"><label>Start Price</label><input id="startDutch" type="number" value="500"></div>
-            <div class="input"><label>Drop Every (sec)</label><input id="dropSec" type="number" value="30"></div>
-            <div class="input"><label>Drop Step</label><input id="dropStep" type="number" value="25"></div>
-            <div class="input"><label>Floor Price</label><input id="floor" type="number" value="300"></div>
-          </div>
-        </div>
-        <div>
-          <div class="input"><label>Image URL</label><input id="img" placeholder="https://..."></div>
-          <div class="grid cols-2">
-            <div class="input"><label>Ship Cost (Std)</label><input id="shipStd" type="number" value="20"></div>
-            <div class="input"><label>Ship Cost (Exp)</label><input id="shipExp" type="number" value="40"></div>
-          </div>
-          <div class="input"><label>Shipping Time (days)</label><input id="shipDays" type="number" value="5"></div>
-          <button class="btn primary" id="listBtn">List Item</button>
-          <p class="helper">This writes to the local demo catalogue. Replace with a POST to your Catalogue service.</p>
-        </div>
-      </div>
-    </section>
+  <main class="container"> <!--Main content area with constrained width-->
+    <section class="card" style="max-width:920px;margin:0 auto"> <!--Card component for selling an item-->
+      <h2>Sell an Item</h2> <!--Heading for the sell item section-->
+      <div class="grid cols-2"> <!--Grid layout with two columns for item details-->
+        <div> <!--First column for item details-->
+          <div class="input"><label>Title</label><input id="title" placeholder="e.g., Classic Watch"></div> <!--Input field for item title-->
+          <div class="input"> <!--Input field container for auction type-->
+            <label>Auction Type</label> <!--Label for auction type select-->
+            <select id="type"> <!--Select dropdown for choosing auction type-->
+              <option value="forward">Forward</option> <!--Option for forward auction-->
+              <option value="dutch">Dutch</option> <!--Option for dutch auction-->
+            </select> <!--End of select dropdown-->
+          </div> <!--End of input field container-->
+          <div id="forwardFields"> <!--Container for forward auction specific fields-->
+            <div class="input"><label>Starting Price</label><input id="startForward" type="number" value="50"></div> <!--Input field for starting price-->
+            <div class="input"><label>Min Increment</label><input id="minInc" type="number" value="5"></div> <!--Input field for minimum increment-->
+            <div class="input"><label>Duration (minutes)</label><input id="duration" type="number" value="10"></div> <!--Input field for auction duration-->
+          </div> <!--End of forward auction specific fields-->
+          <div id="dutchFields" class="hidden"> <!--Container for dutch auction specific fields, hidden by default-->
+            <div class="input"><label>Start Price</label><input id="startDutch" type="number" value="500"></div> <!--Input field for starting price-->
+            <div class="input"><label>Drop Every (sec)</label><input id="dropSec" type="number" value="30"></div> <!--Input field for drop interval-->
+            <div class="input"><label>Drop Step</label><input id="dropStep" type="number" value="25"></div> <!--Input field for drop amount-->
+            <div class="input"><label>Floor Price</label><input id="floor" type="number" value="300"></div> <!--Input field for floor price-->
+          </div> <!--End of dutch auction specific fields-->
+        </div> <!--End of first column-->
+        <div> <!--Second column for additional item details-->
+          <div class="input"><label>Image URL</label><input id="img" placeholder="https://..."></div> <!--Input field for item image URL-->
+          <div class="grid cols-2"> <!--Grid layout with two columns for shipping costs-->
+            <div class="input"><label>Ship Cost (Std)</label><input id="shipStd" type="number" value="20"></div> <!--Input field for standard shipping cost-->
+            <div class="input"><label>Ship Cost (Exp)</label><input id="shipExp" type="number" value="40"></div> <!--Input field for expedited shipping cost-->
+          </div> <!--End of grid layout for shipping costs-->
+          <div class="input"><label>Shipping Time (days)</label><input id="shipDays" type="number" value="5"></div> <!--Input field for shipping time in days-->
+          <button class="btn primary" id="listBtn">List Item</button> <!--Button to list the item for sale-->
+          <p class="helper">This writes to the local demo catalogue. Replace with a POST to your Catalogue service.</p> <!--Helper text explaining the listing action-->
+        </div> <!--End of second column-->
+      </div> <!--End of grid layout-->
+    </section> <!--End of card component-->
   </main>
   
-<footer>
-  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
-</footer>
+<footer> <!--Site-wide footer-->
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div> <!--Footer text with copyright and configuration info-->
+</footer> <!--End of site-wide footer-->
 
-  <script type="module">
-    import {{$, DemoAPI}} from '/assets/js/utils.js';
-    const typeSel = $('#type');
-    const fwd = $('#forwardFields');
-    const dut = $('#dutchFields');
-    typeSel.addEventListener('change', () => {
-      if(typeSel.value==='forward'){ fwd.classList.remove('hidden'); dut.classList.add('hidden'); }
-      else{ dut.classList.remove('hidden'); fwd.classList.add('hidden'); }
-    });
-    $('#listBtn').addEventListener('click', () => {
-      const items = JSON.parse(localStorage.getItem('DEMO_ITEMS')||'[]');
-      const id = String(Math.floor(Math.random()*9000+1000));
-      const base = {
-        id, title: $('#title').value || 'Untitled',
-        image: $('#img').value || 'https://picsum.photos/seed/'+id+'/600/400',
-        shippingDays: Number($('#shipDays').value||5),
-        shipCost: Number($('#shipStd').value||20),
-        shipCostExp: Number($('#shipExp').value||40),
-      };
-      if(typeSel.value==='forward'){
-        items.push({ ...base, auctionType:'forward',
-          currentPrice: Number($('#startForward').value||50),
-          minIncrement: Number($('#minInc').value||5),
-          endsAt: Date.now() + Number($('#duration').value||10)*60*1000
-        });
-      }else{
-        items.push({ ...base, auctionType:'dutch',
-          startPrice: Number($('#startDutch').value||500),
-          dropEverySec: Number($('#dropSec').value||30),
-          step: Number($('#dropStep').value||25),
-          floor: Number($('#floor').value||300),
-          priceNow: Number($('#startDutch').value||500),
-          lastDrop: Date.now()
-        });
-      }
-      localStorage.setItem('DEMO_ITEMS', JSON.stringify(items));
-      alert('Item listed to demo catalogue!');
-      location.href='/pages/browse.html';
-    });
-  </script>
-</body>
-</html>
+  <script type="module"> //JavaScript module for handling item listing functionality
+    import { $, DemoAPI } from '/assets/js/utils.js'; //Importing utility functions from external JS file
+    const typeSel = $('#type'); //Get the auction type select element
+    const fwd = $('#forwardFields'); //Get the forward auction fields container
+    const dut = $('#dutchFields'); //Get the dutch auction fields container
+     typeSel.addEventListener('change', () => { //Event listener for auction type change
+      if(typeSel.value==='forward'){ fwd.classList.remove('hidden'); dut.classList.add('hidden'); } //Show forward fields and hide dutch fields
+      else{ dut.classList.remove('hidden'); fwd.classList.add('hidden'); } //Show dutch fields and hide forward fields
+    }); //End of event listener for auction type change
+    $('#listBtn').addEventListener('click', () => { //Event listener for list item button click
+      const items = JSON.parse(localStorage.getItem('DEMO_ITEMS')||'[]'); //Retrieve existing demo items from localStorage
+      const id = String(Math.floor(Math.random()*9000+1000)); //Generate a random item ID
+      const base = { //Base item details
+        id, title: $('#title').value || 'Untitled', //Item title
+        image: $('#img').value || 'https://picsum.photos/seed/'+id+'/600/400', //Item image URL
+         seller: DemoAPI.user().username, //Seller username
+        shippingDays: Number($('#shipDays').value||5), //Shipping time in days
+        shipCost: Number($('#shipStd').value||20), //Standard shipping cost
+        shipCostExp: Number($('#shipExp').value||40), //Expedited shipping cost
+      }; //End of base item details
+      if(typeSel.value==='forward'){ //If auction type is forward
+        items.push({ ...base, auctionType:'forward', //Add forward auction specific details
+          currentPrice: Number($('#startForward').value||50), //Current price
+          minIncrement: Number($('#minInc').value||5), //Minimum increment
+          endsAt: Date.now() + Number($('#duration').value||10)*60*1000 //Auction end time
+        }); //End of adding forward auction specific details
+      }else{ //If auction type is dutch
+        items.push({ ...base, auctionType:'dutch', //Add dutch auction specific details
+          startPrice: Number($('#startDutch').value||500), //Starting price
+          dropEverySec: Number($('#dropSec').value||30), //Drop interval in seconds
+          step: Number($('#dropStep').value||25), //Drop amount
+          floor: Number($('#floor').value||300), //Floor price
+          priceNow: Number($('#startDutch').value||500), //Current price
+          lastDrop: Date.now() //Timestamp of last price drop
+        }); //End of adding dutch auction specific details
+      } //End of if-else for auction type
+      localStorage.setItem('DEMO_ITEMS', JSON.stringify(items)); //Store updated demo items back to localStorage
+      alert('Item listed to demo catalogue!'); //Alert user of successful listing
+      location.href='/pages/browse.html'; //Redirect to browse page
+    }); //End of event listener for list item button click
+  </script> <!--End of script for handling item listing functionality-->
+</body> <!--End of body section containing visible content-->
+</html> <!--End of HTML document-->

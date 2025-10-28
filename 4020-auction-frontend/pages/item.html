@@ -1,117 +1,117 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Item • Aurora Auctions</title>
-  <link rel="stylesheet" href="/assets/css/main.css">
-</head>
-<body>
+<!doctype html> <!--Declaration of HTML5 document-->
+<html lang="en"> <!--Root element with language attribute set to English-->
+<head> <!--Head section containing metadata and links to resources-->
+  <meta charset="utf-8"> <!--Character encoding set to UTF-8-->
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!--Viewport settings for responsive design-->
+  <title>Item • Aurora Auctions</title> <!--Title of the webpage-->
+  <link rel="stylesheet" href="/assets/css/main.css"> <!--Link to external CSS stylesheet for styling-->
+</head> <!--End of head section-->
+<body> <!--Start of body section containing visible content-->
   
-<header class="site">
-  <div class="inner">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <h1>Aurora Auctions</h1>
-    </div>
-    <nav>
-      <a href="/index.html">Home</a>
-      <a href="/pages/browse.html">Browse</a>
-      <a href="/pages/sell.html">Sell</a>
-      <a href="/pages/profile.html">Profile</a>
-      <a href="/pages/login.html" id="loginLink">Sign In</a>
-      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
-    </nav>
-  </div>
-</header>
-<script type="module">
-import {DemoAPI, navActive} from '/assets/js/utils.js';
-navActive();
-const u = DemoAPI.user();
-const loginLink = document.getElementById('loginLink');
-const logoutBtn = document.getElementById('logoutBtn');
-if(u){
-  loginLink.textContent = u.username;
-  loginLink.href = '/pages/profile.html';
-  logoutBtn.style.display='inline-flex';
-  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
-}
-</script>
+<header class="site"> <!--Site-wide header-->
+  <div class="inner"> <!--Layout wrapper for constraining width and adding padding-->
+    <div class="brand"> <!--Grouping for logo and name-->
+      <div class="logo" aria-hidden="true"></div> <!--Decorative logo. aria-hidden="true" informs the screen readers to ignore it as the brand name follows"-->
+      <h1>Aurora Auctions</h1> <!--Site name for branding and SEO-->
+    </div> <!--End of brand grouping-->
+    <nav> <!--Navigation links-->
+      <a href="/index.html">Home</a> <!--Link to home page-->
+      <a href="/pages/browse.html">Browse</a> <!--Link to browse page-->
+      <a href="/pages/sell.html">Sell</a> <!--Link to sell page-->
+      <a href="/pages/profile.html">Profile</a> <!--Link to user profile page-->
+      <a href="/pages/login.html" id="loginLink">Sign In</a> <!--Link to login page with ID for dynamic updates-->
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button> <!--Logout button, hidden by default, shown when user is logged in-->
+    </nav> <!--End of navigation links-->
+  </div> <!--End of layout wrapper-->
+</header> <!--End of site-wide header-->
+<script type="module"> //JavaScript module for handling user authentication and navigation state
+import {DemoAPI, navActive} from '/assets/js/utils.js'; //Importing utility functions from external JS file
+navActive(); //Highlight the active navigation link based on current page
+const u = DemoAPI.user(); //Get the current user information
+const loginLink = document.getElementById('loginLink'); //Get the login link element
+const logoutBtn = document.getElementById('logoutBtn'); //Get the logout button element
+if(u){ //If user is logged in
+  loginLink.textContent = u.username; //Update login link text to show username
+  loginLink.href = '/pages/profile.html'; //Change login link to point to profile page
+  logoutBtn.style.display='inline-flex'; //Show the logout button
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; }); //Add click event to logout button to sign out user and redirect to home page
+} //End of script for user authentication and navigation state
+</script> <!--End of script for user authentication and navigation state-->
 
-  <main class="container">
-    <section class="card" id="wrap"></section>
-  </main>
+  <main class="container"> <!--Main content area with constrained width-->
+    <section class="card" id="wrap"></section> <!--Card component for item details-->
+  </main> <!--End of main content area-->
   
-<footer>
-  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
-</footer>
+<footer> <!--Site-wide footer-->
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div> <!--Footer text with copyright and configuration info-->
+</footer> <!--End of site-wide footer-->
 
-  <script type="module">
-    import {{$,$all, DemoAPI, requireAuth, formatCurrency, remaining}} from '/assets/js/utils.js';
-    const user = requireAuth();
-    const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    const wrap = document.getElementById('wrap');
-    let item;
-    async function load(){
-      item = await DemoAPI.item(id);
-      if(!item){ wrap.innerHTML = '<p>Item not found.</p>'; return; }
-      const isForward = item.auctionType==='forward';
-      const price = isForward ? item.currentPrice : item.priceNow;
-      wrap.innerHTML = `
-        <div class="grid cols-2">
-          <div><img src="${item.image}" alt="" style="width:100%;height:auto;border-radius:12px;border:1px solid #253043"></div>
-          <div>
-            <h2>${item.title}</h2>
-            <p class="helper">Auction Type: <strong>${item.auctionType}</strong></p>
-            <p>Current Price: <strong>${formatCurrency(price)}</strong></p>
-            ${isForward
-              ? `<p>Ends: <span class="badge warn timer" data-ends="${item.endsAt}"></span></p>
-                 <div class="input"><label>Your Bid</label>
-                   <input id="bidAmt" type="number" min="${item.currentPrice + item.minIncrement}" step="1" value="${item.currentPrice + item.minIncrement}">
-                   <div class="helper">Min increment ${formatCurrency(item.minIncrement)}</div>
-                 </div>
-                 <button class="btn primary" id="bidBtn">Place Bid</button>`
-              : `<div class="input"><label>Current Price</label>
-                   <input disabled value="${formatCurrency(item.priceNow)}">
-                 </div>
-                 <button class="btn success" id="buyBtn">Buy Now</button>
-                 <p class="helper">Dutch price drops every ${item.dropEverySec}s by ${formatCurrency(item.step)} until the floor of ${formatCurrency(item.floor)}.</p>`}
-          </div>
-        </div>
-      `;
-      if(isForward){
-        $('#bidBtn').addEventListener('click', async () => {
-          try{
-            const amt = Number($('#bidAmt').value);
-            await DemoAPI.bidForward(item.id, amt);
-            alert('Bid placed!');
-            load();
-          }catch(e){ alert(e.message); }
-        });
-      }else{
-        $('#buyBtn').addEventListener('click', async () => {
-          try{
-            await DemoAPI.buyNowDutch(item.id);
-            location.href = '/pages/pay.html?id='+item.id;
-          }catch(e){ alert(e.message); }
-        });
-      }
-      tick();
-    }
-    function tick(){
-      const t = $('.timer');
-      if(!t) return;
-      const ends = Number(t.dataset.ends);
-      const left = Math.max(0, ends - Date.now());
-      t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended';
-      if(left){
-        requestAnimationFrame(tick);
-      }else{
-        setTimeout(()=>location.href='/pages/pay.html?id='+item.id, 800);
-      }
-    }
-    load();
-  </script>
-</body>
-</html>
+  <script type="module"> //JavaScript module for item details and auction functionality
+    import { $, $all, DemoAPI, requireAuth, formatCurrency, remaining } from '/assets/js/utils.js'; //Importing utility functions from external JS file
+    const user = requireAuth(); //Ensure user is authenticated
+    const params = new URLSearchParams(location.search); //Get URL parameters
+    const id = params.get('id'); //Get item ID from URL parameters
+    const wrap = document.getElementById('wrap'); //Get the wrapper element for item details
+    let item; //Variable to hold item details
+    async function load(){ //Function to load item details
+      item = await DemoAPI.item(id); //Fetch item details from API
+      if(!item){ wrap.innerHTML = '<p>Item not found.</p>'; return; } //If item not found, display message
+      const isForward = item.auctionType==='forward'; //Check if auction type is forward
+      const price = isForward ? item.currentPrice : item.priceNow; //Determine current price based on auction type
+      wrap.innerHTML = ` <!--HTML template for item details-->
+        <div class="grid cols-2"> <!--Grid layout with two columns-->
+          <div><img src="${item.image}" alt="" style="width:100%;height:auto;border-radius:12px;border:1px solid #253043"></div> <!--Item image with styling-->
+          <div> <!--Item details column-->
+            <h2>${item.title}</h2> <!--Item title-->
+            <p class="helper">Auction Type: <strong>${item.auctionType}</strong></p> <!--Auction type helper text-->
+            <p>Current Price: <strong>${formatCurrency(price)}</strong></p> <!--Current price display-->
+            ${isForward //If auction type is forward
+              ? `<p>Ends: <span class="badge warn timer" data-ends="${item.endsAt}"></span></p> <!--Countdown timer for auction end-->
+                 <div class="input"><label>Your Bid</label> <!--Input field for placing a bid-->
+                   <input id="bidAmt" type="number" min="${item.currentPrice + item.minIncrement}" step="1" value="${item.currentPrice + item.minIncrement}"> <!--Bid amount input with minimum and step values-->
+                   <div class="helper">Min increment ${formatCurrency(item.minIncrement)}</div> <!--Helper text for minimum increment-->
+                 </div> <!--End of input field-->
+                 <button class="btn primary" id="bidBtn">Place Bid</button>` //Button to place bid
+              : `<div class="input"><label>Current Price</label> <!--Input field for current price-->
+                   <input disabled value="${formatCurrency(item.priceNow)}"> <!--Disabled input showing current price-->
+                 </div> <!--End of input field-->
+                 <button class="btn success" id="buyBtn">Buy Now</button> <!--Button to buy item now-->
+                 <p class="helper">Dutch price drops every ${item.dropEverySec}s by ${formatCurrency(item.step)} until the floor of ${formatCurrency(item.floor)}.</p>`} <!--Helper text for Dutch auction details-->
+          </div> <!--End of item details column-->  
+        </div> <!--End of grid layout-->
+      `; //End of HTML template
+      if(isForward){ //If auction type is forward
+        $('#bidBtn').addEventListener('click', async () => { //Add click event listener to bid button
+          try{ //Try to place bid
+            const amt = Number($('#bidAmt').value); //Get bid amount from input field
+            await DemoAPI.bidForward(item.id, amt); //Place bid using API
+            alert('Bid placed!'); //Alert user of successful bid
+            load(); //Reload item details
+          }catch(e){ alert(e.message); } //Catch and alert any errors
+        }); //End of click event listener
+      }else{ //If auction type is Dutch
+        $('#buyBtn').addEventListener('click', async () => { //Add click event listener to buy button
+          try{ //Try to buy item
+            await DemoAPI.buyNowDutch(item.id); //Buy item using API
+            location.href = '/pages/pay.html?id='+item.id; //Redirect to payment page
+          }catch(e){ alert(e.message); } //Catch and alert any errors
+        }); //End of click event listener
+      } //End of auction type check
+      tick(); //Start the timer update function
+    } //End of load function
+    function tick(){ //Function to update countdown timer for forward auctions
+      const t = $('.timer'); //Get the timer element
+      if(!t) return; //If no timer element, exit function
+      const ends = Number(t.dataset.ends); //Get auction end time from data attribute
+      const left = Math.max(0, ends - Date.now()); //Calculate remaining time
+      t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended'; //Update timer text based on remaining time
+      if(left){ //If there is remaining time
+        requestAnimationFrame(tick); //Request the next animation frame to continue updating timer
+      }else{ //If auction has ended
+        setTimeout(()=>location.href='/pages/pay.html?id='+item.id, 800); //Redirect to payment page after a short delay
+      } //End of remaining time check
+    } //End of tick function
+    load(); //Initial call to load function to fetch and display item details
+  </script> <!--End of script for item details and auction functionality-->
+</body> <!--End of body section-->
+</html> <!--End of HTML document-->

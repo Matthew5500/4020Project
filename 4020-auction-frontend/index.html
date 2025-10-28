@@ -1,109 +1,109 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aurora Auctions</title>
-  <link rel="stylesheet" href="/assets/css/main.css">
-</head>
-<body>
+<!doctype html> <!--Declaration of HTML5 document-->
+<html lang="en"> <!--Root element with language attribute set to English-->
+<head> <!--Head section containing metadata and links to resources-->
+  <meta charset="utf-8"> <!--Character encoding set to UTF-8-->
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!--Viewport settings for responsive design-->
+  <title>Aurora Auctions</title> <!--Title of the webpage-->
+  <link rel="stylesheet" href="/assets/css/main.css"> <!--Link to external CSS stylesheet for styling-->
+</head> <!--End of head section-->
+<body> <!--Start of body section containing visible content-->
   
-<header class="site">
-  <div class="inner">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <h1>Aurora Auctions</h1>
-    </div>
-    <nav>
-      <a href="/index.html">Home</a>
-      <a href="/pages/browse.html">Browse</a>
-      <a href="/pages/sell.html">Sell</a>
-      <a href="/pages/profile.html">Profile</a>
-      <a href="/pages/login.html" id="loginLink">Sign In</a>
-      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
-    </nav>
-  </div>
-</header>
-<script type="module">
-import {DemoAPI, navActive} from '/assets/js/utils.js';
-navActive();
-const u = DemoAPI.user();
-const loginLink = document.getElementById('loginLink');
-const logoutBtn = document.getElementById('logoutBtn');
-if(u){
-  loginLink.textContent = u.username;
-  loginLink.href = '/pages/profile.html';
-  logoutBtn.style.display='inline-flex';
-  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
-}
-</script>
+<header class="site"> <!--Site-wide header-->
+  <div class="inner"> <!--Layout wrapper for constraining width and adding padding-->
+    <div class="brand"> <!--Grouping for logo and name-->
+      <div class="logo" aria-hidden="true"></div> <!--Decorative logo. aria-hidden="true" informs the screen readers to ignore it as the brand name follows"-->
+      <h1>Aurora Auctions</h1> <!--Site name for branding and SEO-->
+    </div> <!--End of brand grouping-->
+    <nav> <!--Navigation links-->
+      <a href="/index.html">Home</a> <!--Link to home page-->
+      <a href="/pages/browse.html">Browse</a> <!--Link to browse page-->
+      <a href="/pages/sell.html">Sell</a> <!--Link to sell page-->
+      <a href="/pages/profile.html">Profile</a> <!--Link to user profile page-->
+      <a href="/pages/login.html" id="loginLink">Sign In</a> <!--Link to login page with ID for dynamic updates-->
+      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button> <!--Logout button, hidden by default, shown when user is logged in-->
+    </nav> <!--End of navigation links-->
+  </div> <!--End of layout wrapper-->
+</header> <!--End of site-wide header-->
+<script type="module"> //JavaScript module for handling user authentication and navigation state
+import {DemoAPI, navActive} from '/assets/js/utils.js'; //Importing utility functions from external JS file
+navActive(); //Highlight the active navigation link based on current page
+const u = DemoAPI.user(); //Get the current user information
+const loginLink = document.getElementById('loginLink'); //Get the login link element
+const logoutBtn = document.getElementById('logoutBtn'); //Get the logout button element
+if(u){ //If user is logged in
+  loginLink.textContent = u.username; //Update login link text to show username
+  loginLink.href = '/pages/profile.html'; //Change login link to point to profile page
+  logoutBtn.style.display='inline-flex'; //Show the logout button
+  logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; }); //Add click event to logout button to sign out user and redirect to home page
+} //End of script for user authentication and navigation state
+</script> <!--End of script for user authentication and navigation state-->
 
-  <main class="container">
-    <div class="grid cols-2">
-      <section class="card">
-        <h2>Welcome</h2>
-        <p class="helper">This is the front-end for your three-tier auction system (ITEC4020). It’s wired for both Forward and Dutch auctions per assignment specs.</p>
-        <ul>
-          <li>Forward: strictly increasing bids with countdown timer.</li>
-          <li>Dutch: decreasing price in steps until someone buys.</li>
-        </ul>
-        <a class="btn primary" href="/pages/browse.html">Start Browsing</a>
-      </section>
-      <section class="card">
-        <h3>Quick Start</h3>
-        <ol>
-          <li>Go to <a href="/pages/login.html">Sign In</a> to create a session.</li>
-          <li>Search and pick an item, then bid or buy.</li>
-          <li>On win, proceed to payment and receive a receipt.</li>
-        </ol>
-        <p class="helper">No middle-tier yet? This demo works with localStorage so you can iterate on UI while the backend is built.</p>
-      </section>
-    </div>
-    <section class="card">
-      <h3>Live Auctions</h3>
-      <div id="items" class="grid cols-3"></div>
-    </section>
-  </main>
+  <main class="container"> <!--Main content area with constrained width-->
+    <div class="grid cols-2"> <!--Grid layout with two columns-->
+      <section class="card"> <!--Card component for welcome message-->
+        <h2>Welcome</h2> <!--Heading for the welcome section-->
+        <p class="helper">This is the front-end for our three-tier auction system. It’s wired for both Forward and Dutch auctions.</p> <!--Helper text describing the auction system-->
+        <ul> <!--Unordered list of auction types-->
+          <li>Forward: strictly increasing bids with countdown timer.</li> <!--List item for forward auction-->
+          <li>Dutch: decreasing price in steps until someone buys.</li> <!--List item for dutch auction-->
+        </ul> <!--End of unordered list-->
+        <a class="btn primary" href="/pages/browse.html">Start Browsing</a> <!--Button linking to the browse page-->
+      </section> <!--End of card component-->
+      <section class="card"> <!--Card component for quick start guide-->
+        <h3>Quick Start</h3> <!--Heading for the quick start section-->
+        <ol> <!--Ordered list of steps to get started-->
+          <li>Go to <a href="/pages/login.html">Sign In</a> to create a session.</li> <!--List item for signing in-->
+          <li>Search and pick an item, then bid or buy.</li> <!--List item for browsing and selecting an item-->
+          <li>On win, proceed to payment and receive a receipt.</li> <!--List item for payment process-->
+        </ol> <!--End of ordered list-->
+        <p class="helper">No middle-tier yet? This demo works with localStorage so you can iterate on UI while the backend is built.</p> <!--Helper text about localStorage usage-->
+      </section> <!--End of card component-->
+    </div> <!--End of grid layout-->
+    <section class="card"> <!--Card component for live auctions-->
+      <h3>Live Auctions</h3> <!--Heading for the live auctions section-->
+      <div id="items" class="grid cols-3"></div> <!--Grid container for displaying live auction items with three columns-->
+    </section> <!--End of card component-->
+  </main> <!--End of main content area-->
   
-<footer>
-  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div>
-</footer>
+<footer> <!--Site-wide footer-->
+  <div>© 2025 Aurora Auctions — Front-end demo. Configure your middle-tier URL in <span class="kbd">localStorage.API_BASE_URL</span>.</div> <!--Footer text with copyright and configuration info-->
+</footer> <!--End of site-wide footer-->
 
-  <script type="module">
-    import {{$,$all, DemoAPI, formatCurrency, remaining}} from '/assets/js/utils.js';
-    async function load(){
-      const list = await DemoAPI.search('');
-      const wrap = $('#items');
-      wrap.innerHTML = '';
-      list.forEach(it => {
-        const isForward = it.auctionType==='forward';
-        const price = isForward ? it.currentPrice : it.priceNow;
-        const timer = isForward ? '<span class="badge warn timer" data-ends="'+it.endsAt+'"></span>' : '<span class="badge">Dutch</span>';
-        const el = document.createElement('article');
-        el.className = 'card item-card';
-        el.innerHTML = `
-          <img src="${it.image}" alt="Item">
-          <h4>${it.title}</h4>
-          <div class="meta">
-            <div>Price: <strong>${formatCurrency(price)}</strong></div>
-            <div>${timer}</div>
-          </div>
-          <a class="btn" href="/pages/item.html?id=${it.id}">View</a>
-        `;
-        wrap.appendChild(el);
-      });
-      tick();
-    }
-    function tick(){
-      $all('.timer').forEach(t=>{
-        const ends = Number(t.dataset.ends);
-        const left = Math.max(0, ends - Date.now());
-        t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended';
-        if(!left){ t.classList.add('bad'); }
-      });
-      requestAnimationFrame(tick);
-    }
-    load();
-  </script>
-</body>
-</html>
+  <script type="module"> //JavaScript module for loading and displaying live auction items
+    import {$,$all, DemoAPI, formatCurrency, remaining} from '/assets/js/utils.js'; //Importing utility functions from external JS file
+    async function load(){ //Function to load live auction items
+      const list = await DemoAPI.search(''); //Fetch all items using DemoAPI
+      const wrap = $('#items'); //Get the wrapper element for live auction items
+      wrap.innerHTML = ''; //Clear existing content in the wrapper
+      list.forEach(it => { //Iterate over each item in the fetched list
+        const isForward = it.auctionType==='forward'; //Determine if the auction type is forward
+        const price = isForward ? it.currentPrice : it.priceNow; //Set price based on auction type
+        const timer = isForward ? '<span class="badge warn timer" data-ends="'+it.endsAt+'"></span>' : '<span class="badge">Dutch</span>'; //Set timer display based on auction type
+        const el = document.createElement('article'); //Create a new article element for the item card
+        el.className = 'card item-card'; //Set class names for styling
+        el.innerHTML = ` <!--Inner HTML structure for the item card-->
+          <img src="${it.image}" alt="Item"> <!--Item image-->
+          <h4>${it.title}</h4> <!--Item title-->
+          <div class="meta"> <!--Meta information container-->
+            <div>Price: <strong>${formatCurrency(price)}</strong></div> <!--Price display-->
+            <div>${timer}</div> <!--Timer or auction type badge-->
+          </div> <!--End of meta information container-->
+          <a class="btn" href="/pages/item.html?id=${it.id}">View</a> <!--View button linking to item details page-->
+        `; //End of inner HTML structure
+        wrap.appendChild(el); //Append the item card to the wrapper element
+      }); //End of iteration over fetched items
+      tick(); //Start the timer update function
+    } //End of load function
+    function tick(){ //Function to update timers for auction items
+      $all('.timer').forEach(t=>{ //Select all elements with class 'timer' and iterate over them
+        const ends = Number(t.dataset.ends); //Get the auction end time from data attribute
+        const left = Math.max(0, ends - Date.now()); //Calculate remaining time
+        t.textContent = left ? 'Ends in ' + remaining(left) : 'Ended'; //Update timer text based on remaining time
+        if(!left){ t.classList.add('bad'); } //If time is up, add 'bad' class for styling
+      }); //End of iteration over timer elements
+      requestAnimationFrame(tick); //Request the next animation frame to continuously update timers
+    } //End of tick function
+    load(); //Call load function on page load
+  </script> <!--End of script for loading and displaying live auction items-->
+</body> <!--End of body section-->
+</html> <!--End of HTML document-->
