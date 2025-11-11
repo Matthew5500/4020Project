@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Aurora Auctions • Barebones Client</title>
+</head>
+<body>
+  <h1>Aurora Auctions • Barebones Client</h1>
+  <p>Connected to mid-tier: <b>http://100.75.75.20:8080</b></p>
+
+  <hr>
+
+  <!-- ===================== Auth ===================== -->
+  <section>
+    <h2>Create Account</h2>
+    <div>
+      <label>Email: <input id="regEmail" type="email"></label>
+      <label>Password: <input id="regPassword" type="password"></label>
+      <button id="registerBtn">Create Account</button>
+    </div>
+
+    <h2>Sign In</h2>
+    <div>
+      <label>Email: <input id="loginEmail" type="email"></label>
+      <label>Password: <input id="loginPassword" type="password"></label>
+      <button id="loginBtn">Sign In</button>
+    </div>
+    <div>Auth: <span id="authStatus">Not signed in</span></div>
+  </section>
+
+  <hr>
+
+  <!-- ===================== Auctions ===================== -->
+  <section>
+    <h2>List Auction Items</h2>
+    <button id="listAuctionsBtn">Load Items</button>
+    <pre id="auctionsOut"></pre>
+  </section>
+
+  <hr>
+
+  <!-- ===================== Bidding ===================== -->
+  <section>
+    <h2>Place a Bid</h2>
+    <div>
+      <label>Auction ID: <input id="bidAuctionId" type="text"></label>
+      <label>Bid Type:
+        <select id="bidType">
+          <option value="FORWARD">FORWARD</option>
+          <option value="DUTCH">DUTCH</option>
+        </select>
+      </label>
+      <label>Amount: <input id="bidAmount" type="number" step="0.01"></label>
+      <label>Quantity (Dutch only): <input id="bidQuantity" type="number" step="1" min="1"></label>
+      <button id="bidBtn">Submit Bid</button>
+    </div>
+    <pre id="bidOut"></pre>
+  </section>
+
+  <hr>
+
+  <!-- ===================== End Auction ===================== -->
+  <section>
+    <h2>End Auction</h2>
+    <div>
+      <label>Auction ID: <input id="endAuctionId" type="text"></label>
+      <button id="endAuctionBtn">End Auction Now</button>
+    </div>
+    <pre id="endOut"></pre>
+  </section>
+
+  <hr>
+
+  <!-- ===================== Payment & Receipt ===================== -->
+  <section>
+    <h2>Payment (Mock)</h2>
+    <div>
+      <label>Auction ID: <input id="payAuctionId" type="text"></label>
+      <label>Amount: <input id="payAmount" type="number" step="0.01"></label>
+      <label>Method:
+        <select id="payMethod">
+          <option value="MOCK">MOCK</option>
+          <option value="CASH">CASH</option>
+          <option value="CARD">CARD</option>
+        </select>
+      </label>
+      <button id="payBtn">Process Payment</button>
+    </div>
+    <pre id="payOut"></pre>
+
+    <h3>Receipt</h3>
+    <div id="receipt" style="white-space:pre-wrap;"></div>
+    <button id="printBtn">Print Receipt</button>
+  </section>
+
+  <hr>
+
+  <!-- ===================== Console ===================== -->
+  <section>
+    <h2>Console</h2>
+    <pre id="consoleOut"></pre>
+  </section>
+
+<script>
+/* ================= CONFIG ================= */
+const BASE_URL = "http://100.75.75.20:8080";
+let token = localStorage.getItem('AA_JWT') || null;
+const els = {
+  authStatus: document.getElementById('authStatus'),
+  consoleOut: document.getElementById('consoleOut'),
+  auctionsOut: document.getElementById('auctionsOut'),
+  bidOut: document.getElementById('bidOut'),
+  endOut: document.getElementById('endOut'),
+  payOut: document.getElementById('payOut'),
+  receipt: document.getElementById('receipt')
+};
+/* ========================================== */
+
+function log(whereEl, msg, obj) {
+  const ts = new Date().toISOString();
+  let line = `[${ts}] ${msg}`;
+  if (obj !== undefined) line += `\n${JSON.stringify(obj, null, 2)}\n`;
+  whereEl.textContent = line + '\n' + whereEl.textContent;
+}
+
+function setAuthStatus() {
+  els.authStatus.textContent = token ? 'Signed in' : 'Not signed in';
+}
+
+async function request(path, opts = {}) {
+  const headers = opts.headers || {};
+  headers['Content-Type'] = 'application/json';
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await res.text();
+  let json;
+  try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
+  if (!res.ok) throw { status: res.status, body: json };
+  return json;
+}
+
+/* ========== Register ========== */
+document.getElementById('registerBtn').onclick = async () => {
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  try {
+    const data = await request('/api/auth/register', {
+      method: 'POST',
+      body: { email, password }
+    });
+    log(els.consoleOut, 'Registered', data);
+    alert('Account created. You can sign in now.');
+  } catch (e) {
+    log(els.consoleOut, 'Register failed', e);
+    alert('Register failed. See console.');
+  }
+};
+
+/* ========== Login ========== */
+document.getElementById('loginBtn').onclick = async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const data = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email, password }
+    });
+    token = data.token || data.accessToken || null;
+    if (!token) throw { status: 500, body: 'No token returned' };
+    localStorage.setItem('AA_JWT', token);
+    setAuthStatus();
+    log(els.consoleOut, 'Login successful', { tokenPreview: token.slice(0,16) + '...' });
+  } catch (e) {
+    log(els.consoleOut, 'Login failed', e);
+    alert('Login failed. See console.');
+  }
+};
+
+/* ========== List Auctions ========== */
+document.getElementById('listAuctionsBtn').onclick = async () => {
+  try {
+    const data = await request('/api/auctions');
+    els.auctionsOut.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    els.auctionsOut.textContent = 'Error loading auctions.';
+    log(els.consoleOut, 'List auctions failed', e);
+  }
+};
+
+/* ========== Place Bid ========== */
+document.getElementById('bidBtn').onclick = async () => {
+  const auctionId = document.getElementById('bidAuctionId').value.trim();
+  const bidType = document.getElementById('bidType').value;
+  const amount = parseFloat(document.getElementById('bidAmount').value);
+  const qty = document.getElementById('bidQuantity').value ? parseInt(document.getElementById('bidQuantity').value, 10) : null;
+  if (!auctionId || isNaN(amount)) { alert('Auction ID and Amount are required.'); return; }
+  try {
+    const body = { type: bidType, amount };
+    if (bidType === 'DUTCH' && qty) body.quantity = qty;
+    const data = await request(`/api/auctions/${encodeURIComponent(auctionId)}/bid`, {
+      method: 'POST',
+      body
+    });
+    els.bidOut.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    els.bidOut.textContent = 'Bid failed. See console.';
+    log(els.consoleOut, 'Bid failed', e);
+  }
+};
+
+/* ========== End Auction ========== */
+document.getElementById('endAuctionBtn').onclick = async () => {
+  const auctionId = document.getElementById('endAuctionId').value.trim();
+  if (!auctionId) { alert('Auction ID required'); return; }
+  try {
+    const data = await request(`/api/auctions/${encodeURIComponent(auctionId)}/end`, {
+      method: 'POST'
+    });
+    els.endOut.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    els.endOut.textContent = 'End auction failed. See console.';
+    log(els.consoleOut, 'End auction failed', e);
+  }
+};
+
+/* ========== Payment & Receipt ========== */
+document.getElementById('payBtn').onclick = async () => {
+  const auctionId = document.getElementById('payAuctionId').value.trim();
+  const amount = parseFloat(document.getElementById('payAmount').value);
+  const method = document.getElementById('payMethod').value;
+  if (!auctionId || isNaN(amount)) { alert('Auction ID and Amount are required.'); return; }
+  try {
+    const data = await request('/api/payments', {
+      method: 'POST',
+      body: { auctionId, amount, method }
+    });
+    els.payOut.textContent = JSON.stringify(data, null, 2);
+    const receipt = {
+      title: 'Aurora Auctions — Receipt',
+      datetime: new Date().toISOString(),
+      auctionId,
+      amount,
+      method,
+      paymentId: data.paymentId || data.id || '(unknown)',
+      note: 'Mock payment — no real funds transferred.'
+    };
+    els.receipt.textContent = JSON.stringify(receipt, null, 2);
+  } catch (e) {
+    els.payOut.textContent = 'Payment failed. See console.';
+    log(els.consoleOut, 'Payment failed', e);
+  }
+};
+
+/* ========== Print Receipt ========== */
+document.getElementById('printBtn').onclick = () => {
+  const w = window.open('', 'PRINT', 'height=600,width=800');
+  w.document.write('<!doctype html><html><head><title>Receipt</title></head><body><pre>');
+  w.document.write(els.receipt.textContent.replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+  w.document.write('</pre></body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+};
+
+setAuthStatus();
+</script>
+</body>
+</html>
