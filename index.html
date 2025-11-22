@@ -1,113 +1,591 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aurora Auctions</title>
-  <link rel="stylesheet" href="/assets/css/main.css">
+  <meta charset="UTF-8">
+  <title>Aurora Auctions • Full Feature Demo</title>
 </head>
 <body>
-<header class="site">
-  <div class="inner">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <h1>Aurora Auctions</h1>
-    </div>
-    <nav>
-      <a href="/index.html">Home</a>
-      <a href="/pages/browse.html">Browse</a>
-      <a href="/pages/sell.html">Sell</a>
-      <a href="/pages/profile.html">Profile</a>
-      <a href="/pages/login.html" id="loginLink">Sign In</a>
-      <button class="btn" id="logoutBtn" style="display:none">Sign Out</button>
-    </nav>
-  </div>
-</header>
-<script type="module">
-  import {DemoAPI, navActive} from '/assets/js/utils.js';
-  navActive();
-  const u = DemoAPI.user();
-  const loginLink = document.getElementById('loginLink');
-  const logoutBtn = document.getElementById('logoutBtn');
-  if(u){
-    loginLink.textContent = u.username;
-    loginLink.href = '/pages/profile.html';
-    logoutBtn.style.display='inline-flex';
-    logoutBtn.addEventListener('click', ()=>{ DemoAPI.signOut(); location.href='/index.html'; });
-  }
-</script>
+  <h1>Aurora Auctions • Minimal Client (No CSS)</h1>
+  <p>Mid-tier API base: <code id="apiBaseDisplay">http://100.75.75.20:8080</code></p>
 
-<main class="container">
-  <div class="grid cols-2">
-    <section class="card">
-      <h2>Welcome</h2>
-      <p class="helper">This is the front-end for our three-tier auction system. It’s wired for both Forward and Dutch auctions.</p>
-      <ul>
-        <li>Forward: strictly increasing bids with a countdown timer.</li>
-        <li>Dutch: decreasing price in steps until someone buys.</li>
-      </ul>
-      <a class="btn primary" href="/pages/browse.html">Start Browsing</a>
-    </section>
-    <section class="card">
-      <h3>Quick Start</h3>
-      <ol>
-        <li>Go to <a href="/pages/login.html">Sign In</a> to create a session.</li>
-        <li>Search and pick an item, then bid or buy.</li>
-        <li>On win, proceed to payment and receive a receipt.</li>
-      </ol>
-      <!-- removed the “No middle-tier yet?” helper text -->
-    </section>
-  </div>
+  <hr>
 
-  <section class="card">
-    <h3>Live Auctions</h3>
-    <div id="items" class="grid cols-3 equal-cards"></div>
+  <!-- Current user info -->
+  <section>
+    <h2>Current User</h2>
+    <p id="currentUserDisplay">Not logged in</p>
+    <button id="clearUserBtn">Clear stored user (logout)</button>
   </section>
-</main>
 
-<footer>
-  <div>© 2025 Aurora Auctions</div>
-</footer>
+  <hr>
 
-<script type="module">
-  import { $, DemoAPI, formatCurrency, remaining } from '/assets/js/utils.js';
-  async function load(){
-    const list = await DemoAPI.search('');
-    const wrap = $('#items');
-    wrap.innerHTML = '';
-    list.forEach(it=>{
-      const isForward = it.auctionType==='forward';
-      const price = isForward ? it.currentPrice : it.priceNow;
-      const timer = isForward ? '<span class="badge warn timer" data-ends="'+it.endsAt+'"></span>' : '<span class="badge">Dutch</span>';
-      const el = document.createElement('article');
-      el.className = 'card item-card';
-      el.innerHTML = `
-        <img src="${it.image}" alt="">
-        <h4>${it.title}</h4>
-        <div class="meta">
-          <div>${isForward ? 'Forward' : 'Dutch'} • <strong>${formatCurrency(price)}</strong></div>
-          <div>${timer}</div>
-        </div>
-        <a class="btn" href="/pages/item.html?id=${it.id}">View</a>
-      `;
-      wrap.appendChild(el);
+  <!-- Health check -->
+  <section>
+    <h2>Health Check</h2>
+    <button id="healthBtn">Check /api/health</button>
+  </section>
+
+  <hr>
+
+  <!-- Auth -->
+  <section>
+    <h2>Authentication</h2>
+
+    <h3>Register</h3>
+    <div>
+      <label>Username <input id="regUsername" type="text"></label><br>
+      <label>Password <input id="regPassword" type="password"></label><br>
+      <label>Email <input id="regEmail" type="email"></label><br>
+      <label>First Name <input id="regFirstName" type="text"></label><br>
+      <label>Last Name <input id="regLastName" type="text"></label><br>
+      <label>Phone <input id="regPhone" type="text"></label><br>
+      <button id="registerBtn">Register</button>
+    </div>
+
+    <h3>Login</h3>
+    <div>
+      <label>Username <input id="loginUsername" type="text"></label><br>
+      <label>Password <input id="loginPassword" type="password"></label><br>
+      <button id="loginBtn">Login</button>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Items: list & search -->
+  <section>
+    <h2>Items</h2>
+    <div>
+      <button id="listAllItemsBtn">List All Items</button>
+      <button id="listActiveItemsBtn">List Active Items</button>
+      <button id="listEndedItemsBtn">List Ended Items</button>
+    </div>
+
+    <h3>Search Items</h3>
+    <div>
+      <label>Query <input id="searchQuery" type="text"></label>
+      <button id="searchItemsBtn">Search</button>
+    </div>
+
+    <h3>Get Single Item</h3>
+    <div>
+      <label>Item ID <input id="singleItemId" type="number"></label>
+      <button id="getItemBtn">Get Item</button>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Create item -->
+  <section>
+    <h2>Create Item (Auction)</h2>
+    <p>Uses the currently logged in user as <code>sellerId</code>.</p>
+    <div>
+      <label>Title <input id="createTitle" type="text"></label><br>
+      <label>Description <input id="createDescription" type="text"></label><br>
+      <label>Starting Price <input id="createStartingPrice" type="number" step="0.01"></label><br>
+      <label>Minimum Price (for DUTCH; optional) <input id="createMinimumPrice" type="number" step="0.01"></label><br>
+      <label>
+        Auction Type
+        <select id="createAuctionType">
+          <option value="FORWARD">FORWARD</option>
+          <option value="DUTCH">DUTCH</option>
+        </select>
+      </label><br>
+      <label>
+        End Time (ISO, e.g. 2025-12-31T23:59:00)
+        <input id="createEndTime" type="text">
+      </label><br>
+      <button id="createItemBtn">Create Item</button>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Bidding -->
+  <section>
+    <h2>Bidding</h2>
+    <p>Uses the currently logged in user as <code>bidderId</code>/<code>buyerId</code>.</p>
+
+    <h3>Place Bid (FORWARD Auctions)</h3>
+    <div>
+      <label>Item ID <input id="bidItemId" type="number"></label><br>
+      <label>Bid Amount <input id="bidAmount" type="number" step="0.01"></label><br>
+      <button id="placeBidBtn">Place Bid</button>
+    </div>
+
+    <h3>List Bids for Item</h3>
+    <div>
+      <label>Item ID <input id="listBidsItemId" type="number"></label>
+      <button id="listBidsBtn">List Bids</button>
+    </div>
+
+    <h3>Dutch Auction Actions</h3>
+    <div>
+      <label>Item ID <input id="dutchItemId" type="number"></label><br>
+      <button id="dutchPriceBtn">Get Current Dutch Price</button>
+      <button id="dutchAcceptBtn">Accept Dutch Price</button>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Auction end + payment + receipt -->
+  <section>
+    <h2>Auction End & Payment</h2>
+
+    <h3>End Auction (Seller)</h3>
+    <div>
+      <label>Item ID <input id="endItemId" type="number"></label>
+      <button id="endAuctionBtn">End Auction</button>
+    </div>
+
+    <h3>Pay for Item (Winner)</h3>
+    <div>
+      <label>Item ID <input id="payItemId" type="number"></label><br>
+      <label>Method (e.g. FakeVisa) <input id="payMethod" type="text"></label><br>
+      <label>Note <input id="payNote" type="text"></label><br>
+      <button id="payBtn">Pay</button>
+    </div>
+
+    <h3>Get Receipt</h3>
+    <div>
+      <label>Item ID <input id="receiptItemId" type="number"></label>
+      <button id="receiptBtn">Get Receipt</button>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Output / logs -->
+  <section>
+    <h2>Output</h2>
+    <h3>Last Response</h3>
+    <pre id="outputArea"></pre>
+
+    <h3>Log</h3>
+    <pre id="logArea"></pre>
+  </section>
+
+  <script>
+    // ==== CONFIG ====
+    const API_BASE = 'http://100.75.75.20:8080';
+    document.getElementById('apiBaseDisplay').textContent = API_BASE;
+
+    let currentUser = null;
+
+    // ==== UTILITIES ====
+
+    function log(message) {
+      const logArea = document.getElementById('logArea');
+      const timestamp = new Date().toISOString();
+      logArea.textContent += '[' + timestamp + '] ' + message + '\n';
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function showOutput(data) {
+      const outputArea = document.getElementById('outputArea');
+      try {
+        outputArea.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        outputArea.textContent = String(data);
+      }
+    }
+
+    function updateCurrentUserDisplay() {
+      const el = document.getElementById('currentUserDisplay');
+      if (!currentUser) {
+        el.textContent = 'Not logged in';
+      } else {
+        el.textContent =
+          'Logged in as userId=' + currentUser.userId +
+          ', username=' + currentUser.username +
+          ', email=' + currentUser.email;
+      }
+    }
+
+    function loadUserFromStorage() {
+      try {
+        const raw = localStorage.getItem('currentUser');
+        if (raw) {
+          currentUser = JSON.parse(raw);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      updateCurrentUserDisplay();
+    }
+
+    function saveUserToStorage() {
+      if (currentUser) {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('currentUser');
+      }
+    }
+
+    async function api(path, options = {}) {
+      const url = API_BASE + path;
+      const defaultHeaders = {
+        'Content-Type': 'application/json'
+      };
+      const opts = {
+        method: options.method || 'GET',
+        headers: Object.assign({}, defaultHeaders, options.headers || {})
+      };
+      if (options.body !== undefined) {
+        opts.body = JSON.stringify(options.body);
+      }
+      log('Request: ' + opts.method + ' ' + url);
+      if (opts.body) {
+        log('Body: ' + opts.body);
+      }
+
+      const res = await fetch(url, opts);
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (e) {
+        data = text;
+      }
+
+      if (!res.ok) {
+        log('Response error: HTTP ' + res.status);
+        showOutput(data);
+        throw { status: res.status, data: data };
+      }
+
+      log('Response OK: HTTP ' + res.status);
+      showOutput(data);
+      return data;
+    }
+
+    // ==== EVENT HANDLERS ====
+
+    // Health check
+    document.getElementById('healthBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/health');
+        const text = await res.text();
+        log('Health response: ' + text);
+        showOutput(text);
+      } catch (e) {
+        log('Health check failed: ' + e);
+      }
     });
 
-    // simple countdowns
-    const timers = document.querySelectorAll('.timer');
-    function tick(){
-      const now = Date.now();
-      timers.forEach(t=>{
-        const ends = Number(t.getAttribute('data-ends'));
-        const left = ends - now;
-        t.textContent = left<=0 ? 'Ended' : remaining(left);
-        if(left<=0) t.classList.remove('warn');
-      });
-    }
-    tick();
-    setInterval(tick, 1000);
-  }
-  load();
-</script>
+    // Clear user (logout)
+    document.getElementById('clearUserBtn').addEventListener('click', () => {
+      currentUser = null;
+      saveUserToStorage();
+      updateCurrentUserDisplay();
+      log('Cleared current user');
+    });
+
+    // Register
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const username = document.getElementById('regUsername').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const email = document.getElementById('regEmail').value.trim();
+      const firstName = document.getElementById('regFirstName').value.trim();
+      const lastName = document.getElementById('regLastName').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+
+      const body = {
+        username,
+        password,
+        email,
+        firstName,
+        lastName,
+        phone
+      };
+
+      try {
+        const data = await api('/api/auth/register', {
+          method: 'POST',
+          body
+        });
+        log('Register response received');
+        // Python authenticator typically returns {status: "ok"} or {error: "..."}
+      } catch (e) {
+        log('Register failed: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // Login
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      const body = { username, password };
+
+      try {
+        const data = await api('/api/auth/login', {
+          method: 'POST',
+          body
+        });
+        // Expecting something like: { status: "ok", user: {...} } from Python
+        if (data && data.status === 'ok' && data.user) {
+          currentUser = data.user;
+          saveUserToStorage();
+          updateCurrentUserDisplay();
+          log('Login successful for userId=' + currentUser.userId);
+        } else {
+          log('Login response did not contain user object');
+        }
+      } catch (e) {
+        log('Login failed: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // List items
+    document.getElementById('listAllItemsBtn').addEventListener('click', async () => {
+      try {
+        const data = await api('/api/items');
+        log('Loaded all items: ' + (Array.isArray(data) ? data.length : '?'));
+      } catch (e) {
+        log('Failed to load all items');
+      }
+    });
+
+    document.getElementById('listActiveItemsBtn').addEventListener('click', async () => {
+      try {
+        const data = await api('/api/items/active');
+        log('Loaded active items: ' + (Array.isArray(data) ? data.length : '?'));
+      } catch (e) {
+        log('Failed to load active items');
+      }
+    });
+
+    document.getElementById('listEndedItemsBtn').addEventListener('click', async () => {
+      try {
+        const data = await api('/api/items/ended');
+        log('Loaded ended items: ' + (Array.isArray(data) ? data.length : '?'));
+      } catch (e) {
+        log('Failed to load ended items');
+      }
+    });
+
+    // Search items
+    document.getElementById('searchItemsBtn').addEventListener('click', async () => {
+      const q = document.getElementById('searchQuery').value.trim();
+      const path = q ? '/api/items/search?q=' + encodeURIComponent(q) : '/api/items';
+      try {
+        const data = await api(path);
+        log('Search completed, items: ' + (Array.isArray(data) ? data.length : '?'));
+      } catch (e) {
+        log('Search failed');
+      }
+    });
+
+    // Get single item
+    document.getElementById('getItemBtn').addEventListener('click', async () => {
+      const id = document.getElementById('singleItemId').value;
+      if (!id) {
+        log('Item ID is required');
+        return;
+      }
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(id));
+        log('Loaded item ' + id);
+      } catch (e) {
+        log('Failed to load item ' + id);
+      }
+    });
+
+    // Create item
+    document.getElementById('createItemBtn').addEventListener('click', async () => {
+      if (!currentUser) {
+        log('You must be logged in to create an item');
+        return;
+      }
+      const title = document.getElementById('createTitle').value.trim();
+      const description = document.getElementById('createDescription').value.trim();
+      const startingPriceStr = document.getElementById('createStartingPrice').value;
+      const minPriceStr = document.getElementById('createMinimumPrice').value;
+      const auctionType = document.getElementById('createAuctionType').value;
+      const endTimeStr = document.getElementById('createEndTime').value.trim();
+
+      if (!title || !startingPriceStr) {
+        log('Title and starting price are required');
+        return;
+      }
+
+      const startingPrice = parseFloat(startingPriceStr);
+      const minimumPrice = minPriceStr ? parseFloat(minPriceStr) : null;
+
+      const body = {
+        sellerId: currentUser.userId,
+        title,
+        description,
+        startingPrice,
+        minimumPrice,
+        auctionType,
+        endTime: endTimeStr || null
+      };
+
+      try {
+        const data = await api('/api/items', {
+          method: 'POST',
+          body
+        });
+        log('Created item with id=' + data.itemId);
+      } catch (e) {
+        log('Failed to create item: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // Place bid
+    document.getElementById('placeBidBtn').addEventListener('click', async () => {
+      if (!currentUser) {
+        log('You must be logged in to place a bid');
+        return;
+      }
+      const itemId = document.getElementById('bidItemId').value;
+      const amountStr = document.getElementById('bidAmount').value;
+      if (!itemId || !amountStr) {
+        log('Item ID and bid amount are required');
+        return;
+      }
+      const amount = parseFloat(amountStr);
+      const body = {
+        bidderId: currentUser.userId,
+        amount
+      };
+
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/bids', {
+          method: 'POST',
+          body
+        });
+        log('Bid placed on item ' + itemId);
+      } catch (e) {
+        log('Failed to place bid: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // List bids
+    document.getElementById('listBidsBtn').addEventListener('click', async () => {
+      const itemId = document.getElementById('listBidsItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/bids');
+        log('Loaded ' + (Array.isArray(data) ? data.length : '?') + ' bids for item ' + itemId);
+      } catch (e) {
+        log('Failed to load bids for item ' + itemId);
+      }
+    });
+
+    // Dutch: get current price
+    document.getElementById('dutchPriceBtn').addEventListener('click', async () => {
+      const itemId = document.getElementById('dutchItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/dutch/price');
+        log('Dutch price for item ' + itemId + ': ' + JSON.stringify(data));
+      } catch (e) {
+        log('Failed to get Dutch price: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // Dutch: accept price
+    document.getElementById('dutchAcceptBtn').addEventListener('click', async () => {
+      if (!currentUser) {
+        log('You must be logged in to accept a Dutch auction');
+        return;
+      }
+      const itemId = document.getElementById('dutchItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      const body = {
+        buyerId: currentUser.userId
+      };
+
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/dutch/accept', {
+          method: 'POST',
+          body
+        });
+        log('Dutch auction accepted for item ' + itemId);
+      } catch (e) {
+        log('Failed to accept Dutch auction: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // End auction
+    document.getElementById('endAuctionBtn').addEventListener('click', async () => {
+      const itemId = document.getElementById('endItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/end', {
+          method: 'POST'
+        });
+        log('Auction ended for item ' + itemId);
+      } catch (e) {
+        log('Failed to end auction: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // Pay for item
+    document.getElementById('payBtn').addEventListener('click', async () => {
+      if (!currentUser) {
+        log('You must be logged in to pay');
+        return;
+      }
+      const itemId = document.getElementById('payItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      const method = document.getElementById('payMethod').value.trim();
+      const note = document.getElementById('payNote').value.trim();
+
+      const body = {
+        payerId: currentUser.userId,
+        method,
+        note
+      };
+
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/pay', {
+          method: 'POST',
+          body
+        });
+        log('Payment simulated for item ' + itemId);
+      } catch (e) {
+        log('Failed to pay for item: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // Get receipt
+    document.getElementById('receiptBtn').addEventListener('click', async () => {
+      const itemId = document.getElementById('receiptItemId').value;
+      if (!itemId) {
+        log('Item ID is required');
+        return;
+      }
+      try {
+        const data = await api('/api/items/' + encodeURIComponent(itemId) + '/receipt');
+        log('Loaded receipt for item ' + itemId);
+      } catch (e) {
+        log('Failed to load receipt: ' + JSON.stringify(e.data));
+      }
+    });
+
+    // ==== INIT ====
+    loadUserFromStorage();
+  </script>
 </body>
 </html>
