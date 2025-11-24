@@ -1,7 +1,7 @@
 // Shared config + helpers for both pages
 
 // When served from 100.75.75.30 with Nginx proxying /api → 100.75.75.20:8080
-const API_BASE = "100.75.75.20:8080";
+const API_BASE = "/api";
 
 function buildApiUrl(path) {
   if (!path.startsWith("/")) path = "/" + path;
@@ -77,3 +77,4 @@ document.addEventListener("DOMContentLoaded", () => {
   if (el) el.textContent = API_BASE;
 
 });
+
