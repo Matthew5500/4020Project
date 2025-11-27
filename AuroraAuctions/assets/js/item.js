@@ -76,15 +76,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const winningPrice =
         firstField(item, ["currentPrice", "finalPrice", "price"]) || 0;
-      const baseShipping = firstField(item, ["shippingCost", "shipping_cost"], 0);
-      const expShipping = firstField(
+
+      // 🔹 Try many possible field names so we actually pick up your $50 value
+      const baseShipping = firstField(
         item,
-        ["expeditedShippingCost", "expedited_shipping_cost"],
+        [
+          // exact DB / typical entity names
+          "ship_cost_std",
+          "shipCostStd",
+          // older generic guesses (keep as fallbacks)
+          "shippingCost",
+          "shipping_cost",
+          "shipping",
+          "shippingRegular",
+          "shipping_regular",
+          "baseShipping",
+        ],
         0
       );
+      
+      const expShipping = firstField(
+        item,
+        [
+          // exact DB / typical entity names
+          "ship_cost_exp",
+          "shipCostExp",
+          // generic fallbacks
+          "expeditedShippingCost",
+          "expedited_shipping_cost",
+          "expeditedShipping",
+          "shippingExpedited",
+          "shipping_expedited",
+        ],
+        0
+      );
+      
       const shippingDays = firstField(
         item,
-        ["shippingDays", "shipping_time_days"],
+        [
+          "ship_days",   // DB column
+          "shipDays",    // typical entity name
+          "shippingDays",
+          "shipping_time_days",
+        ],
         null
       );
 
