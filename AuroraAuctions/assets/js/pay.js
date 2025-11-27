@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   AA.initNav();
 
+  // --- 1. Load checkout context from sessionStorage ---
+
   const rawCheckout = sessionStorage.getItem("checkout");
   if (!rawCheckout) {
     if (AA.showToast) {
@@ -38,7 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
     expeditedSelected,
   } = checkout;
 
-  // DOM refs
+  // --- 2. DOM references ---
+
   const elItemTitle = document.getElementById("pay-item-title");
   const elWinningPrice = document.getElementById("pay-winning-price");
   const elShipRegular = document.getElementById("pay-ship-regular");
@@ -57,7 +60,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardCvv = document.getElementById("card-cvv");
   const errorBox = document.getElementById("pay-error");
 
-  // Fill static fields
+  // --- 3. Populate static info (order summary + user info) ---
+
   elItemTitle.textContent = title || `Item #${itemId}`;
   elWinningPrice.textContent = AA.formatMoney(winningPrice || 0);
   elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
@@ -77,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "The item will be shipped in a few days (shipping time not specified).";
   }
 
-  // User info (depends on what your backend returns; we just try fields)
+  // User info (we just stitch together any fields the backend gave us)
   const parts = [];
   if (user.firstName || user.lastName) {
     elUserName.textContent = `${user.firstName || ""} ${
@@ -96,7 +100,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ? parts.join(", ")
       : "No address on file (from Sign-Up).";
 
-  // internal state
+  // --- 4. Shipping + total calculation ---
+
   elExpCheckbox.checked = !!expeditedSelected;
 
   function computeTotals() {
@@ -119,34 +124,51 @@ document.addEventListener("DOMContentLoaded", () => {
   elExpCheckbox.addEventListener("change", renderTotals);
   renderTotals();
 
-  // Simple card validation (no real gateway)
+  // --- 5. Credit-card validation (stricter, but still fake gateway) ---
+
   function validateCard() {
     errorBox.textContent = "";
 
-    const num = cardNumber.value.replace(/\s+/g, "");
+    // Strip spaces and dashes from card number
+    const num = cardNumber.value.replace(/[\s-]+/g, "");
     const name = cardName.value.trim();
     const exp = cardExpiry.value.trim();
     const cvv = cardCvv.value.trim();
 
-    if (!num || !/^\d{12,19}$/.test(num)) {
+    // Card number: exactly 16 digits
+    if (!/^\d{16}$/.test(num)) {
       errorBox.textContent =
-        "Please enter a valid card number (digits only, 12–19 digits).";
+        "Card number must be exactly 16 digits (numbers only).";
       return false;
     }
+
     if (!name) {
       errorBox.textContent = "Please enter the name on the card.";
       return false;
     }
-    if (!/^\d{2}\/\d{2}$/.test(exp)) {
+
+    // Expiry: MM/YY with month 01–12
+    const match = /^(\d{2})\/(\d{2})$/.exec(exp);
+    if (!match) {
       errorBox.textContent = "Please use expiry format MM/YY.";
       return false;
     }
-    if (!/^\d{3,4}$/.test(cvv)) {
-      errorBox.textContent = "Please enter a 3–4 digit CVV.";
+    const mm = parseInt(match[1], 10);
+    if (mm < 1 || mm > 12) {
+      errorBox.textContent = "Expiry month must be between 01 and 12.";
       return false;
     }
+
+    // CVV: 3 or 4 digits
+    if (!/^\d{3,4}$/.test(cvv)) {
+      errorBox.textContent = "CVV must be 3 or 4 digits.";
+      return false;
+    }
+
     return true;
   }
+
+  // --- 6. Submit handler → POST /api/items/{id}/pay, then save receipt ---
 
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -161,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         expedited ? "EXPEDITED" : "REGULAR"
       }, shippingTotal=${shippingTotal}`;
 
-      // UC5 logical payment request – backend still sees a simple JSON
+      // Backend still sees a normal JSON payment request
       const receiptFromServer = await AA.api(
         `/items/${encodeURIComponent(itemId)}/pay`,
         {
@@ -174,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       );
 
-      // UC6: store everything we need for the receipt page
+      // Save everything we want for the UC6 receipt page
       const lastReceipt = {
         itemId,
         title,
