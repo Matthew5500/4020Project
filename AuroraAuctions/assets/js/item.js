@@ -5,16 +5,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   AA.initNav();
 
-  // 🔹 Get ID from query string (?id=123 or ?itemId=123)
-  const itemId =
-    AA.getQueryParam("id") || AA.getQueryParam("itemId");
+  // Be flexible: ?id=123 or ?itemId=123 or ?item_id=123
+  const rawId =
+    AA.getQueryParam("id") ||
+    AA.getQueryParam("itemId") ||
+    AA.getQueryParam("item_id");
+
+  // If the query string literally has id=undefined, treat that as missing.
+  const itemId = rawId && rawId !== "undefined" ? rawId : null;
 
   if (!itemId) {
-    AA.showToast(
-      "Missing item id in the URL.",
-      "error"
-    );
-    // Go back to browse if we have no id
+    AA.showToast("Missing or invalid item id in the URL.", "error");
     window.location.href = "browse.html";
     return;
   }
@@ -52,7 +53,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadItem() {
     try {
-      // 🔹 Now itemId is guaranteed to be a real value, not undefined
       const item = await AA.api(`/items/${encodeURIComponent(itemId)}`);
       currentItem = item;
 
