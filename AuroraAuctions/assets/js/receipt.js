@@ -15,51 +15,79 @@ document.addEventListener("DOMContentLoaded", () => {
       box.innerHTML =
         "<p class='aa-muted'>No recent payment found. Go to Browse to pick an item.</p>";
     }
-    AA.showToast(
-      "No receipt",
-      "There is no recent payment to show.",
-      "info"
-    );
+    if (AA.showToast) {
+      AA.showToast("No recent payment to show.", "info");
+    }
     return;
   }
 
-  let payload;
+  let r;
   try {
-    payload = JSON.parse(raw);
+    r = JSON.parse(raw);
   } catch {
     sessionStorage.removeItem("lastReceipt");
     if (box) {
       box.innerHTML =
         "<p class='aa-muted'>Receipt data was corrupted. Please try paying again.</p>";
     }
-    AA.showToast("Receipt error", "Could not read saved receipt.", "error");
+    if (AA.showToast) {
+      AA.showToast("Could not read saved receipt.", "error");
+    }
     return;
   }
 
-  const { itemId, receipt } = payload;
+  const {
+    itemId,
+    title,
+    winningPrice,
+    baseShipping,
+    expShipping,
+    shippingTotal,
+    grandTotal,
+    expedited,
+    shippingDays,
+    payerId,
+    paidAt,
+  } = r;
+
+  const shipType = expedited ? "Expedited" : "Regular";
 
   if (box) {
     box.innerHTML = `
-      <h2>Payment receipt</h2>
+      <h3>Payment receipt</h3>
       <p><strong>Item ID:</strong> ${itemId}</p>
-      <p><strong>Payer ID:</strong> ${receipt?.payerId ?? user.userId}</p>
-      <p><strong>Amount:</strong> ${
-        receipt?.amount
-          ? AA.formatMoney(receipt.amount)
-          : "See auction final price"
-      }</p>
-      <p><strong>Method:</strong> ${receipt?.method || "FAKE_CARD"}</p>
-      <p><strong>Note:</strong> ${
-        receipt?.note || "Test payment, no real card"
-      }</p>
+      <p><strong>Item:</strong> ${title || "(no title)"} </p>
+      <p><strong>Payer ID:</strong> ${payerId ?? user.userId}</p>
+
+      <p><strong>Item price:</strong> ${AA.formatMoney(winningPrice || 0)}</p>
+      <p><strong>Shipping (${shipType}):</strong> ${AA.formatMoney(
+        shippingTotal || 0
+      )}</p>
+      <p class="aa-muted small">
+        (Base shipping: ${AA.formatMoney(baseShipping || 0)}${
+      expShipping
+        ? `, expedited extra: ${AA.formatMoney(expShipping)}`
+        : ""
+    })
+      </p>
+
+      <p><strong>Total paid:</strong> ${AA.formatMoney(grandTotal || 0)}</p>
+
+      <h3>Shipping details</h3>
+      <p>
+        ${
+          typeof shippingDays === "number"
+            ? `The item will be shipped in ${shippingDays} day(s).`
+            : "The item will be shipped in a few days (shipping time not specified)."
+        }
+      </p>
     `;
   }
 
   if (meta) {
-    meta.textContent = `Paid on: ${
-      receipt?.paidAt
-        ? AA.formatDateTime(receipt.paidAt)
-        : new Date().toLocaleString()
-    }`;
+    const when = paidAt
+      ? AA.formatDateTime(paidAt)
+      : new Date().toLocaleString();
+    meta.textContent = `Paid on: ${when}`;
   }
 });
