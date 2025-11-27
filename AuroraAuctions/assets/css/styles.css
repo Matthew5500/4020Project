@@ -311,3 +311,31 @@ select:focus {
   border-top: 1px dashed var(--border);
   padding-top: 0.75rem;
 }
+
+#aa-toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  max-width: 260px;
+  background: rgba(15, 23, 42, 0.96);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 50;
+}
+
+.aa-toast-success {
+  border-color: var(--accent);
+}
+
+.aa-toast-error {
+  border-color: var(--danger);
+}
+
+.aa-toast-info {
+  border-color: var(--border);
+}
