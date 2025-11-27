@@ -17,43 +17,43 @@
     </nav>
   </header>
 
-<main class="aa-main">
-  <section class="aa-section">
-    <h1>Browse Auctions</h1>
-    <p class="aa-muted">
-      Filter active, ended, or your own listings, or search by keyword.
-    </p>
+  <main class="aa-main">
+    <section class="aa-card">
+      <h2>Browse Catalogue</h2>
 
-    <form id="search-form" class="aa-form-inline">
-      <input type="text" id="search-query" placeholder="Search by keyword" />
-      <button type="submit" class="aa-btn secondary">Search</button>
-      <button type="button" id="btn-show-active" class="aa-btn ghost">Active</button>
-      <button type="button" id="btn-show-ended" class="aa-btn ghost">Ended</button>
-      <button type="button" id="btn-show-mine" class="aa-btn ghost">My Listings</button>
-    </form>
+      <img src="../assets/img/listing-banner.png"
+           alt="Aurora Auctions listings"
+           class="aa-listing-banner" />
 
-    <table class="aa-table">
-      <thead>
-      <tr>
-        <th></th>
-        <th>Item</th>
-        <th>Current Price</th>
-        <th>Type</th>
-        <th>Status</th>
-        <th>Ends / Remaining</th>
-        <th></th>
-      </tr>
-      </thead>
-      <tbody id="items-tbody"></tbody>
-    </table>
-  </section>
-</main>
+      <form id="search-form" class="aa-form-inline">
+        <input type="text" id="search-query" placeholder="Search by keyword" />
+        <button type="submit" class="aa-btn secondary">Search</button>
+        <button type="button" id="btn-show-active" class="aa-btn ghost">Active</button>
+        <button type="button" id="btn-show-ended" class="aa-btn ghost">Ended</button>
+        <button type="button" id="btn-show-mine" class="aa-btn ghost">My Listings</button>
+      </form>
 
-<footer class="aa-footer">
-  <span>ITEC 4020 • Aurora Auctions</span>
-</footer>
+      <table class="aa-table">
+        <thead>
+        <tr>
+          <th>Item</th>
+          <th>Current Price</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Ends / Remaining</th>
+          <th></th>
+        </tr>
+        </thead>
+        <tbody id="items-tbody"></tbody>
+      </table>
+    </section>
+  </main>
 
-<script src="../assets/js/common.js"></script>
-<script src="../assets/js/browse.js"></script>
+  <footer class="aa-footer">
+    <span>ITEC 4020 • Aurora Auctions</span>
+  </footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/browse.js"></script>
 </body>
 </html>

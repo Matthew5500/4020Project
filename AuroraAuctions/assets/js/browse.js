@@ -14,54 +14,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let countdownTimer = null;
 
-  function startCountdown() {
+  function updateCountdownCells() {
     if (!tbody) return;
+    const cells = tbody.querySelectorAll("td[data-end-time]");
+    const now = new Date();
 
+    cells.forEach((cell) => {
+      const iso = cell.getAttribute("data-end-time");
+      if (!iso) {
+        cell.textContent = "—";
+        cell.classList.remove("aa-time-warning", "aa-time-danger");
+        return;
+      }
+      const end = AA.parseAuctionTime ? AA.parseAuctionTime(iso) : new Date(iso);
+      if (!end || isNaN(end.getTime())) {
+        cell.textContent = "—";
+        cell.classList.remove("aa-time-warning", "aa-time-danger");
+        return;
+      }
+
+      const diffMs = end.getTime() - now.getTime();
+      if (diffMs <= 0) {
+        cell.textContent = "Ended";
+        cell.classList.remove("aa-time-warning", "aa-time-danger");
+        return;
+      }
+
+      const totalSecs = Math.floor(diffMs / 1000);
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      cell.textContent = `${h}h ${m}m ${s}s`;
+
+      const minutesLeft = totalSecs / 60;
+      cell.classList.remove("aa-time-warning", "aa-time-danger");
+      if (minutesLeft <= 5) {
+        cell.classList.add("aa-time-danger");
+      } else if (minutesLeft <= 10) {
+        cell.classList.add("aa-time-warning");
+      }
+    });
+  }
+
+  function startCountdownTimer() {
     if (countdownTimer) {
       clearInterval(countdownTimer);
-      countdownTimer = null;
     }
-
-    const update = () => {
-      const cells = tbody.querySelectorAll("td[data-end-time]");
-      const now = Date.now();
-
-      cells.forEach((cell) => {
-        const iso = cell.dataset.endTime;
-        if (!iso) return;
-
-        const end = new Date(iso).getTime();
-        if (Number.isNaN(end)) {
-          cell.textContent = "—";
-          return;
-        }
-
-        const diff = end - now;
-
-        cell.classList.remove("aa-time-warning", "aa-time-danger");
-
-        if (diff <= 0) {
-          cell.textContent = "Ended";
-          return;
-        }
-
-        const sec = Math.floor(diff / 1000);
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        const s = sec % 60;
-
-        cell.textContent = `${h}h ${m}m ${s}s`;
-
-        if (diff <= 5 * 60 * 1000) {
-          cell.classList.add("aa-time-danger");
-        } else if (diff <= 10 * 60 * 1000) {
-          cell.classList.add("aa-time-warning");
-        }
-      });
-    };
-
-    update();
-    countdownTimer = setInterval(update, 1000);
+    updateCountdownCells();
+    countdownTimer = setInterval(updateCountdownCells, 1000);
   }
 
   async function loadItems(mode) {
@@ -70,9 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     //  - { q: "keyword" } for search
     //  - undefined for "all"
 
-    if (!tbody) return;
-
-    tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
+    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
 
     try {
       let items;
@@ -83,10 +81,17 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (mode === "ended") {
           items = await AA.api("/items/ended");
         } else if (mode === "mine") {
-          // FIX: My Listings now uses sellerId instead of ownerId
-          items = await AA.api(
-            `/items?sellerId=${encodeURIComponent(user.userId)}`
-          );
+          // Load all items and filter client-side to the current seller.
+          // This avoids depending on a specific query parameter name on the API.
+          items = await AA.api("/items");
+          items = (items || []).filter((item) => {
+            const owner =
+              item.sellerId ??
+              item.ownerId ??
+              item.owner_id ??
+              item.seller_id;
+            return owner != null && String(owner) === String(user.userId);
+          });
         } else {
           items = await AA.api("/items");
         }
@@ -100,11 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!Array.isArray(items) || items.length === 0) {
         tbody.innerHTML =
-          "<tr><td colspan='7' class='aa-muted small'>No items found.</td></tr>";
-        if (countdownTimer) {
-          clearInterval(countdownTimer);
-          countdownTimer = null;
-        }
+          "<tr><td colspan='6' class='aa-muted small'>No items found.</td></tr>";
         return;
       }
 
@@ -121,33 +122,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const tr = document.createElement("tr");
-        const price = item.currentPrice || item.startingPrice || item.price;
-        const endIso = item.endTime || item.end_time;
-        const imgSrc =
-          item.imageUrl ||
-          item.coverImageUrl ||
-          item.cover_image_url ||
-          "https://picsum.photos/seed/aurora-thumb/120/80";
+        const price = item.currentPrice || item.startingPrice;
 
         tr.innerHTML = `
-          <td>
-            <img
-              src="${imgSrc}"
-              alt="${item.title}"
-              class="aa-list-thumb"
-              onerror="this.src='https://picsum.photos/seed/aurora-thumb/120/80'"
-            />
-          </td>
           <td>${item.title}</td>
           <td>${AA.formatMoney(price)}</td>
           <td>${item.auctionType}</td>
           <td>${item.status}</td>
-          <td
-            class="aa-ends-cell"
-            data-end-time="${endIso || ""}"
-          >
-            ${AA.timeRemaining(endIso)}
-          </td>
+          <td data-end-time="${item.endTime || ""}">${AA.timeRemaining(
+          item.endTime
+        )}</td>
           <td>
             <a class="aa-btn secondary"
                href="item.html?id=${encodeURIComponent(id)}">
@@ -159,16 +143,11 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.appendChild(tr);
       });
 
-      // Start / restart countdown after rows are rendered
-      startCountdown();
+      startCountdownTimer();
     } catch (err) {
       console.error("Browse loadItems error:", err);
       tbody.innerHTML =
-        "<tr><td colspan='7' class='aa-muted small'>Failed to load items.</td></tr>";
-      if (countdownTimer) {
-        clearInterval(countdownTimer);
-        countdownTimer = null;
-      }
+        "<tr><td colspan='6' class='aa-muted small'>Failed to load items.</td></tr>";
       if (AA.showToast) {
         AA.showToast(
           `Failed to load items: ${err.message || "Unknown error"}`,
@@ -178,13 +157,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Search form (UC2.1)
+  // Search form
   if (searchForm) {
     searchForm.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const q = document.getElementById("search-query").value.trim();
-      if (q) loadItems({ q });
-      else loadItems("active");
+      if (!q) {
+        loadItems();
+      } else {
+        loadItems({ q });
+      }
     });
   }
 

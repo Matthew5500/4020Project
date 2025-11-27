@@ -20,18 +20,9 @@ window.AA = (function () {
     }
   }
 
-  function requireLogin() {
-    const user = getUser();
-    if (!user) {
-      window.location.href = "../pages/login.html";
-      return null;
-    }
-    return user;
-  }
-
   async function api(path, options = {}) {
     const url = `${API_BASE}${path}`;
-    const init = {
+    const opts = {
       method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
@@ -40,46 +31,74 @@ window.AA = (function () {
     };
 
     if (options.body) {
-      init.body = JSON.stringify(options.body);
+      opts.body =
+        typeof options.body === "string"
+          ? options.body
+          : JSON.stringify(options.body);
     }
 
-    const res = await fetch(url, init);
-    const text = await res.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-
-    if (!res.ok) {
-      const msg =
-        (data &&
-          (data.message || data.error || data.reason || data.details)) ||
-        res.statusText ||
-        "Request failed";
+    const resp = await fetch(url, opts);
+    if (!resp.ok) {
+      let msg = `${resp.status} ${resp.statusText}`;
+      try {
+        const data = await resp.json();
+        if (data && data.message) msg = data.message;
+      } catch {
+        // ignore
+      }
       throw new Error(msg);
     }
-
-    return data;
+    if (resp.status === 204) return null;
+    return resp.json();
   }
 
-  function formatMoney(n) {
-    if (n == null) return "—";
-    return `$${Number(n).toFixed(2)}`;
+  function requireLogin() {
+    const user = getUser();
+    if (!user) {
+      if (window.location.pathname.endsWith("index.html") ||
+          window.location.pathname === "/" ) {
+        // On the home page just let them stay but they will see sign in CTA.
+        return null;
+      }
+      window.location.href = "../pages/login.html";
+      return null;
+    }
+    return user;
+  }
+
+  function formatMoney(v) {
+    if (v == null || Number.isNaN(Number(v))) return "$0.00";
+    return `$${Number(v).toFixed(2)}`;
+  }
+
+  function parseAuctionTime(iso) {
+    if (!iso) return null;
+    if (iso instanceof Date) return iso;
+    const str = String(iso).trim();
+    if (!str) return null;
+    let normalized = str;
+    // If the backend sends UTC timestamps (ending in 'Z'),
+    // treat them as local by stripping the 'Z' to avoid auctions
+    // appearing to end earlier due to timezone shifts.
+    if (normalized.endsWith("Z")) {
+      normalized = normalized.slice(0, -1);
+    }
+    const d = new Date(normalized);
+    if (isNaN(d.getTime())) return null;
+    return d;
   }
 
   function formatDateTime(iso) {
-    if (!iso) return "—";
-    const d = new Date(iso);
+    const d = parseAuctionTime(iso);
+    if (!d) return "—";
     return d.toLocaleString();
   }
 
   function timeRemaining(iso) {
-    if (!iso) return "—";
-    const end = new Date(iso).getTime();
-    const now = Date.now();
-    const diff = end - now;
+    const end = parseAuctionTime(iso);
+    if (!end) return "—";
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
     if (diff <= 0) return "Ended";
     const sec = Math.floor(diff / 1000);
     const h = Math.floor(sec / 3600);
@@ -89,36 +108,50 @@ window.AA = (function () {
   }
 
   function getQueryParam(name) {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(name);
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name);
   }
 
   function initNav() {
     const user = getUser();
     const logoutBtn = document.getElementById("nav-logout");
-    const loginLink =
-      document.getElementById("nav-login") ||
-      document.getElementById("home-auth-cta");
+    const loginLink = document.getElementById("nav-login");
+    const heroAuthBtn = document.getElementById("hero-auth-btn");
+
+    // Figure out correct relative path to the login page
+    const inPages = window.location.pathname.includes("/pages/");
+    const loginHref = inPages ? "login.html" : "pages/login.html";
 
     if (logoutBtn) {
       if (user) {
         logoutBtn.classList.remove("hidden");
         logoutBtn.addEventListener("click", () => {
           setUser(null);
-          window.location.href = "../pages/login.html";
+          window.location.href = loginHref;
         });
       } else {
         logoutBtn.classList.add("hidden");
       }
     }
 
+    if (heroAuthBtn) {
+      if (user) {
+        heroAuthBtn.textContent = "Log Out";
+        heroAuthBtn.href = "#";
+        heroAuthBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          setUser(null);
+          window.location.href = loginHref;
+        });
+      } else {
+        heroAuthBtn.textContent = "Sign In / Sign Up";
+        heroAuthBtn.href = loginHref;
+      }
+    }
+
     if (loginLink) {
       if (user) {
-        loginLink.textContent = `Welcome ${user.username}`;
-        loginLink.classList.add("aa-nav-welcome");
-      } else {
-        loginLink.textContent = "Sign In / Sign Up";
-        loginLink.classList.remove("aa-nav-welcome");
+        loginLink.textContent = `Hi, ${user.username}`;
       }
     }
   }
@@ -132,19 +165,20 @@ window.AA = (function () {
       items.slice(0, 4).forEach((item) => {
         const card = document.createElement("article");
         card.className = "aa-card-small";
+
+        const id = item.itemId ?? item.id ?? item.item_id;
         const imgSrc =
           item.imageUrl ||
           item.coverImageUrl ||
           item.cover_image_url ||
-          "https://picsum.photos/seed/aurora/400/240";
+          "https://picsum.photos/seed/placeholder/600/400";
+        const safeTitle = String(item.title || "Auction item").replace(
+          /"/g,
+          "&quot;"
+        );
 
         card.innerHTML = `
-          <img
-            src="${imgSrc}"
-            alt="${item.title}"
-            class="aa-card-thumb"
-            onerror="this.src='https://picsum.photos/seed/aurora/400/240'"
-          />
+          <img class="aa-card-image" src="${imgSrc}" alt="${safeTitle}" />
           <h3>${item.title}</h3>
           <p>${item.description || ""}</p>
           <p><strong>${formatMoney(
@@ -154,7 +188,7 @@ window.AA = (function () {
             ${item.auctionType} • ${item.status}
           </p>
           <a class="aa-btn secondary" href="pages/item.html?id=${encodeURIComponent(
-            item.itemId
+            id
           )}">View</a>
         `;
         container.appendChild(card);
@@ -170,23 +204,19 @@ window.AA = (function () {
 
   let toastTimer = null;
 
-  function showToast(title, detail = "", type = "info") {
-    let el = document.getElementById("aa-toast");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "aa-toast";
-      document.body.appendChild(el);
-    }
-    el.className = `aa-toast aa-toast-${type}`;
-    el.innerHTML = `<strong>${title}</strong>${
-      detail ? `<div>${detail}</div>` : ""
-    }`;
-    el.style.opacity = "1";
+  function showToast(message, detail, type = "info") {
+    const el = document.getElementById("aa-toast");
+    if (!el) return;
+    const msgEl = el.querySelector(".aa-toast-message");
+    const detailEl = el.querySelector(".aa-toast-detail");
 
+    msgEl.textContent = message || "";
+    detailEl.textContent = detail || "";
+    el.dataset.type = type;
+
+    el.classList.add("show");
     if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      el.style.opacity = "0";
-    }, 4000);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
   }
 
   return {
@@ -195,6 +225,7 @@ window.AA = (function () {
     setUser,
     requireLogin,
     formatMoney,
+    parseAuctionTime,
     formatDateTime,
     timeRemaining,
     getQueryParam,
