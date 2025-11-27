@@ -6,16 +6,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   AA.initNav();
 
-  // --- 1. Load checkout context from sessionStorage ---
-
   const rawCheckout = sessionStorage.getItem("checkout");
   if (!rawCheckout) {
-    if (AA.showToast) {
-      AA.showToast(
-        "No item selected for payment. Redirecting to Browse.",
-        "error"
-      );
-    }
+    AA.showToast(
+      "No item selected for payment. Redirecting to Browse.",
+      "error"
+    );
     window.location.href = "browse.html";
     return;
   }
@@ -40,8 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     expeditedSelected,
   } = checkout;
 
-  // --- 2. DOM references ---
-
+  // DOM refs
   const elItemTitle = document.getElementById("pay-item-title");
   const elWinningPrice = document.getElementById("pay-winning-price");
   const elShipRegular = document.getElementById("pay-ship-regular");
@@ -60,8 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardCvv = document.getElementById("card-cvv");
   const errorBox = document.getElementById("pay-error");
 
-  // --- 3. Populate static info (order summary + user info) ---
-
+  // Fill static fields
   elItemTitle.textContent = title || `Item #${itemId}`;
   elWinningPrice.textContent = AA.formatMoney(winningPrice || 0);
   elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
@@ -81,8 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "The item will be shipped in a few days (shipping time not specified).";
   }
 
-  // User info (we just stitch together any fields the backend gave us)
-  const parts = [];
+  // User info
   if (user.firstName || user.lastName) {
     elUserName.textContent = `${user.firstName || ""} ${
       user.lastName || ""
@@ -91,17 +84,17 @@ document.addEventListener("DOMContentLoaded", () => {
     elUserName.textContent = user.username || `User #${user.userId}`;
   }
 
-  if (user.street) parts.push(user.street);
-  if (user.city) parts.push(user.city);
-  if (user.country) parts.push(user.country);
-  if (user.postalCode) parts.push(user.postalCode);
+  const addrParts = [];
+  if (user.street) addrParts.push(user.street);
+  if (user.city) addrParts.push(user.city);
+  if (user.country) addrParts.push(user.country);
+  if (user.postalCode) addrParts.push(user.postalCode);
   elUserAddress.textContent =
-    parts.length > 0
-      ? parts.join(", ")
+    addrParts.length > 0
+      ? addrParts.join(", ")
       : "No address on file (from Sign-Up).";
 
-  // --- 4. Shipping + total calculation ---
-
+  // State
   elExpCheckbox.checked = !!expeditedSelected;
 
   function computeTotals() {
@@ -124,18 +117,17 @@ document.addEventListener("DOMContentLoaded", () => {
   elExpCheckbox.addEventListener("change", renderTotals);
   renderTotals();
 
-  // --- 5. Credit-card validation (stricter, but still fake gateway) ---
-
+  // Simple but stricter card validation
   function validateCard() {
     errorBox.textContent = "";
 
-    // Strip spaces and dashes from card number
+    // Strip spaces and dashes
     const num = cardNumber.value.replace(/[\s-]+/g, "");
     const name = cardName.value.trim();
     const exp = cardExpiry.value.trim();
     const cvv = cardCvv.value.trim();
 
-    // Card number: exactly 16 digits
+    // Card number: 16 digits, only numbers
     if (!/^\d{16}$/.test(num)) {
       errorBox.textContent =
         "Card number must be exactly 16 digits (numbers only).";
@@ -147,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     }
 
-    // Expiry: MM/YY with month 01–12
+    // Expiry: MM/YY with MM 01–12
     const match = /^(\d{2})\/(\d{2})$/.exec(exp);
     if (!match) {
       errorBox.textContent = "Please use expiry format MM/YY.";
@@ -168,12 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return true;
   }
 
-  // --- 6. Submit handler → POST /api/items/{id}/pay, then save receipt ---
-
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    errorBox.textContent = "";
-
     if (!validateCard()) return;
 
     const { shippingTotal, grandTotal, expedited } = computeTotals();
@@ -183,8 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         expedited ? "EXPEDITED" : "REGULAR"
       }, shippingTotal=${shippingTotal}`;
 
-      // Backend still sees a normal JSON payment request
-      const receiptFromServer = await AA.api(
+      const serverReceipt = await AA.api(
         `/items/${encodeURIComponent(itemId)}/pay`,
         {
           method: "POST",
@@ -196,7 +183,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       );
 
-      // Save everything we want for the UC6 receipt page
       const lastReceipt = {
         itemId,
         title,
@@ -208,28 +194,23 @@ document.addEventListener("DOMContentLoaded", () => {
         expedited,
         shippingDays,
         payerId: user.userId,
-        backend: receiptFromServer,
+        backend: serverReceipt,
         paidAt: new Date().toISOString(),
       };
 
       sessionStorage.setItem("lastReceipt", JSON.stringify(lastReceipt));
       sessionStorage.removeItem("checkout");
 
-      if (AA.showToast) {
-        AA.showToast("Payment successful. Showing receipt.", "success");
-      }
-
+      AA.showToast("Payment successful. Showing receipt.", "success");
       window.location.href = "receipt.html";
     } catch (err) {
       console.error("Payment failed:", err);
       errorBox.textContent =
         err.message || "Payment failed. Please try again.";
-      if (AA.showToast) {
-        AA.showToast(
-          "Payment failed: " + (err.message || "Bad Request"),
-          "error"
-        );
-      }
+      AA.showToast(
+        "Payment failed: " + (err.message || "Bad Request"),
+        "error"
+      );
     }
   });
 });
