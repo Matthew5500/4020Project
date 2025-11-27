@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aurora Auctions – Sign In / Sign Up</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+</head>
+<body>
+<header class="aa-header">
+  <div class="aa-logo">Aurora Auctions</div>
+  <nav class="aa-nav">
+    <a href="../index.html">Home</a>
+    <a href="browse.html">Browse</a>
+  </nav>
+</header>
+
+<main class="aa-main aa-two-column">
+  <section class="aa-card">
+    <h2>Sign In</h2>
+    <form id="login-form" class="aa-form">
+      <label>
+        Username
+        <input type="text" name="username" required />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit" class="aa-btn primary">Sign In</button>
+    </form>
+    <p class="aa-muted small">
+      Forgot your password? For this assignment, please contact an admin; no real email reset is implemented (UC1.2).
+    </p>
+  </section>
+
+  <section class="aa-card">
+    <h2>Sign Up</h2>
+    <form id="register-form" class="aa-form">
+      <div class="aa-form-row">
+        <label>
+          Username
+          <input type="text" name="username" required />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required />
+        </label>
+      </div>
+
+      <div class="aa-form-row">
+        <label>
+          First Name
+          <input type="text" name="firstName" required />
+        </label>
+        <label>
+          Last Name
+          <input type="text" name="lastName" required />
+        </label>
+      </div>
+
+      <label>
+        Phone
+        <input type="tel" name="phone" required />
+      </label>
+
+      <!-- UC1.1 shipping address fields -->
+      <div class="aa-form-row">
+        <label>
+          Street
+          <input type="text" name="street" required />
+        </label>
+        <label>
+          Number
+          <input type="text" name="streetNo" required />
+        </label>
+      </div>
+
+      <div class="aa-form-row">
+        <label>
+          City
+          <input type="text" name="city" required />
+        </label>
+        <label>
+          Country
+          <input type="text" name="country" required />
+        </label>
+      </div>
+
+      <label>
+        Postal Code
+        <input type="text" name="postalCode" required />
+      </label>
+
+      <label>
+        Password
+        <input type="password" name="password" required />
+      </label>
+
+      <button type="submit" class="aa-btn secondary">Create Account</button>
+    </form>
+    <p class="aa-muted small">
+      Address fields are required to satisfy UC1.1 (sign-up with shipping address). The current backend
+      stores addresses in separate tables; the mid-tier mainly uses username/password for auth. 
+    </p>
+  </section>
+</main>
+
+<footer class="aa-footer">
+  <span>ITEC 4020 • Aurora Auctions</span>
+</footer>
+
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/auth.js"></script>
+</body>
+</html>

@@ -1,80 +1,153 @@
-// Shared config + helpers for both pages
+// Simple global namespace to avoid polluting window
+window.AA = (function () {
+  const API_BASE = "/api"; // goes through Nginx proxy to mid-tier
 
-// When served from 100.75.75.30 with Nginx proxying /api → 100.75.75.20:8080
-const API_BASE = "/api";
+  function getUser() {
+    const raw = sessionStorage.getItem("user");
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
 
-function buildApiUrl(path) {
-  if (!path.startsWith("/")) path = "/" + path;
-  return API_BASE.replace(/\/$/, "") + path;
-}
+  function setUser(user) {
+    if (user) {
+      sessionStorage.setItem("user", JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem("user");
+    }
+  }
 
-async function callApi(path, options = {}) {
-  const url = buildApiUrl(path);
-  const init = {
-    method: options.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+  function requireLogin() {
+    const user = getUser();
+    if (!user) {
+      window.location.href = "../pages/login.html";
+      return null;
+    }
+    return user;
+  }
+
+  async function api(path, options = {}) {
+    const url = `${API_BASE}${path}`;
+    const init = {
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    };
+    if (options.body) {
+      init.body = JSON.stringify(options.body);
+    }
+    const res = await fetch(url, init);
+    let data = null;
+    const text = await res.text();
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    if (!res.ok) {
+      const message = (data && data.error) || text || `HTTP ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  function formatMoney(n) {
+    if (n == null) return "—";
+    return `$${Number(n).toFixed(2)}`;
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleString();
+  }
+
+  function timeRemaining(iso) {
+    if (!iso) return "—";
+    const end = new Date(iso).getTime();
+    const now = Date.now();
+    const diff = end - now;
+    if (diff <= 0) return "Ended";
+    const sec = Math.floor(diff / 1000);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${h}h ${m}m ${s}s`;
+  }
+
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  function initNav() {
+    const user = getUser();
+    const logoutBtn = document.getElementById("nav-logout");
+    const loginLink = document.getElementById("nav-login");
+
+    if (logoutBtn) {
+      if (user) {
+        logoutBtn.classList.remove("hidden");
+        logoutBtn.addEventListener("click", () => {
+          setUser(null);
+          window.location.href = "../pages/login.html";
+        });
+      } else {
+        logoutBtn.classList.add("hidden");
+      }
+    }
+
+    if (loginLink) {
+      if (user) {
+        loginLink.textContent = `Hi, ${user.username}`;
+      }
+    }
+  }
+
+  async function loadFeatured() {
+    const container = document.getElementById("featured-list");
+    if (!container) return;
+    try {
+      const items = await api("/items/active");
+      container.innerHTML = "";
+      items.slice(0, 4).forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "aa-card-small";
+        card.innerHTML = `
+          <h3>${item.title}</h3>
+          <p>${item.description || ""}</p>
+          <p><strong>${formatMoney(item.currentPrice || item.startingPrice)}</strong></p>
+          <p class="aa-muted small">
+            ${item.auctionType} • ${item.status}
+          </p>
+          <a class="aa-btn secondary" href="pages/item.html?id=${encodeURIComponent(
+            item.itemId
+          )}">View</a>
+        `;
+        container.appendChild(card);
+      });
+    } catch (err) {
+      container.innerHTML =
+        '<p class="aa-muted small">Unable to load featured items.</p>';
+      console.error("Featured load failed:", err.message);
+    }
+  }
+
+  return {
+    api,
+    getUser,
+    setUser,
+    requireLogin,
+    formatMoney,
+    formatDateTime,
+    timeRemaining,
+    getQueryParam,
+    initNav,
+    loadFeatured,
   };
-
-  if (options.body !== undefined) {
-    init.body = JSON.stringify(options.body);
-  }
-
-  const res = await fetch(url, init);
-  const text = await res.text();
-  let data = text;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    // non-JSON body, keep as text
-  }
-
-  if (!res.ok) {
-    const err = { status: res.status, data };
-    console.error("API error:", err);
-    throw err;
-  }
-
-  return data;
-}
-
-// ===== user storage helpers =====
-
-function saveUser(user) {
-  if (user) {
-    const json = JSON.stringify(user);
-    // Requirement: store in sessionStorage under "user"
-    sessionStorage.setItem("user", json);
-    // Mirror to localStorage for older snippets that used localStorage
-    localStorage.setItem("user", json);
-  } else {
-    sessionStorage.removeItem("user");
-    localStorage.removeItem("user");
-  }
-}
-
-function getStoredUser() {
-  const raw = sessionStorage.getItem("user") || localStorage.getItem("user");
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    console.warn("Failed to parse stored user");
-    return null;
-  }
-}
-
-function clearStoredUser() {
-  saveUser(null);
-}
-
-// Show base path in header on both pages
-document.addEventListener("DOMContentLoaded", () => {
-  const el = document.getElementById("apiBaseDisplay");
-  if (el) el.textContent = API_BASE;
-
-});
-
+})();

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aurora Auctions – Sell Item</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+</head>
+<body>
+<header class="aa-header">
+  <div class="aa-logo">Aurora Auctions</div>
+  <nav class="aa-nav">
+    <a href="../index.html">Home</a>
+    <a href="browse.html">Browse</a>
+    <a href="sell.html" class="active">Sell</a>
+    <button id="nav-logout" class="aa-link-button">Logout</button>
+  </nav>
+</header>
+
+<main class="aa-main">
+  <section class="aa-card">
+    <h2>Sell an Item (Create Auction)</h2>
+    <p class="aa-muted small">
+      UC7: provide item details, auction type (Forward/Dutch), starting price, optional reserve, shipping, quantity,
+      and an image URL (stored in <code>cover_image_url</code> in the DB). 
+    </p>
+
+    <form id="sell-form" class="aa-form">
+      <label>
+        Title
+        <input type="text" name="title" required />
+      </label>
+
+      <label>
+        Description
+        <textarea name="description" rows="3"></textarea>
+      </label>
+
+      <div class="aa-form-row">
+        <label>
+          Category
+          <input type="text" name="category" placeholder="Electronics, Fashion, etc." />
+        </label>
+        <label>
+          Condition
+          <select name="conditionCode">
+            <option value="NEW">New</option>
+            <option value="USED" selected>Used</option>
+            <option value="REFURB">Refurbished</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Image URL
+        <input type="url" name="coverImageUrl" placeholder="https://example.com/image.jpg" />
+      </label>
+
+      <div class="aa-form-row">
+        <label>
+          Auction Type
+          <select name="auctionType" id="auction-type">
+            <option value="FORWARD" selected>Forward</option>
+            <option value="DUTCH">Dutch</option>
+          </select>
+        </label>
+
+        <label>
+          Auction End Time (optional)
+          <input type="datetime-local" name="endTime" />
+        </label>
+      </div>
+
+      <div class="aa-form-row">
+        <label>
+          Starting Price
+          <input type="number" name="startingPrice" min="0" step="1" required />
+        </label>
+        <label>
+          Minimum / Reserve Price (optional)
+          <input type="number" name="minimumPrice" min="0" step="1" />
+        </label>
+      </div>
+
+      <div class="aa-form-row">
+        <label>
+          Shipping (Standard)
+          <input type="number" name="shipCostStd" min="0" step="1" />
+        </label>
+        <label>
+          Shipping (Expedited)
+          <input type="number" name="shipCostExp" min="0" step="1" />
+        </label>
+      </div>
+
+      <div class="aa-form-row">
+        <label>
+          Estimated Ship Time (days)
+          <input type="number" name="shipDays" min="1" step="1" />
+        </label>
+        <label>
+          Quantity
+          <input type="number" name="quantity" min="1" step="1" value="1" />
+        </label>
+      </div>
+
+      <button type="submit" class="aa-btn primary">Create Auction</button>
+      <p id="sell-message" class="aa-muted small"></p>
+    </form>
+  </section>
+</main>
+
+<footer class="aa-footer">
+  <span>ITEC 4020 • Aurora Auctions</span>
+</footer>
+
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/sell.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aurora Auctions – Browse</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+</head>
+<body>
+<header class="aa-header">
+  <div class="aa-logo">Aurora Auctions</div>
+  <nav class="aa-nav">
+    <a href="../index.html">Home</a>
+    <a href="browse.html" class="active">Browse</a>
+    <a href="sell.html">Sell</a>
+    <button id="nav-logout" class="aa-link-button">Logout</button>
+  </nav>
+</header>
+
+<main class="aa-main">
+  <section class="aa-card">
+    <h2>Browse Catalogue</h2>
+
+    <form id="search-form" class="aa-form-inline">
+      <input type="text" id="search-query" placeholder="Search by keyword" />
+      <button type="submit" class="aa-btn secondary">Search</button>
+      <button type="button" id="btn-show-active" class="aa-btn ghost">Active</button>
+      <button type="button" id="btn-show-ended" class="aa-btn ghost">Ended</button>
+      <button type="button" id="btn-show-mine" class="aa-btn ghost">My Listings</button>
+    </form>
+
+    <table class="aa-table">
+      <thead>
+      <tr>
+        <th>Item</th>
+        <th>Current Price</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Ends / Remaining</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody id="items-tbody"></tbody>
+    </table>
+  </section>
+</main>
+
+<footer class="aa-footer">
+  <span>ITEC 4020 • Aurora Auctions</span>
+</footer>
+
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/browse.js"></script>
+</body>
+</html>
