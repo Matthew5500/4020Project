@@ -7,21 +7,25 @@
   <link rel="stylesheet" href="../assets/css/styles.css" />
 </head>
 <body>
+
 <header class="aa-header">
   <div class="aa-logo">Aurora Auctions</div>
   <nav class="aa-nav">
     <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell</a>
     <button id="nav-logout" class="aa-link-button">Logout</button>
   </nav>
 </header>
 
 <main class="aa-main">
   <section class="aa-card">
-    <h2>Receipt &amp; Shipping Details</h2>
-    <div id="receipt-content">
-      <!-- filled by JS using GET /api/items/{id}/receipt -->
-    </div>
-    <a href="browse.html" class="aa-btn secondary">Back to main page</a>
+    <h2>Receipt & Shipping Details</h2>
+
+    <!-- 🔹 This is where JS injects the receipt details -->
+    <div id="receipt-box"></div>
+    <p id="receipt-meta" class="aa-muted small"></p>
+
+    <a href="browse.html" class="aa-btn secondary">Back to Catalogue</a>
   </section>
 </main>
 
@@ -29,6 +33,7 @@
   <span>ITEC 4020 • Aurora Auctions</span>
 </footer>
 
+<!-- JS files -->
 <script src="../assets/js/common.js"></script>
 <script src="../assets/js/receipt.js"></script>
 </body>
