@@ -33,23 +33,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       tbody.innerHTML = "";
-      items.forEach((item) => {
-        const tr = document.createElement("tr");
-        const price = item.currentPrice || item.startingPrice;
-        tr.innerHTML = `
-          <td>${item.title}</td>
-          <td>${AA.formatMoney(price)}</td>
-          <td>${item.auctionType}</td>
-          <td>${item.status}</td>
-          <td>${AA.timeRemaining(item.endTime)}</td>
-          <td>
-            <a class="aa-btn secondary" href="item.html?id=${encodeURIComponent(
-              item.itemId
-            )}">View</a>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+    items.forEach((item) => {
+      const tr = document.createElement("tr");
+      const price = item.currentPrice || item.startingPrice;
+      tr.innerHTML = `
+        <td>${item.title}</td>
+        <td>${AA.formatMoney(price)}</td>
+        <td>${item.auctionType}</td>
+        <td>${item.status}</td>
+        <td>${AA.timeRemaining(item.endTime)}</td>
+        <td>
+          <a class="aa-btn secondary"
+             href="item.html?id=${encodeURIComponent(item.itemId)}">
+            View
+          </a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
     } catch (err) {
       tbody.innerHTML = `<tr><td colspan="6" class="aa-muted small">Error: ${err.message}</td></tr>`;
       console.error("Browse error:", err.message);
