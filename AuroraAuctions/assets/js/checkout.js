@@ -44,6 +44,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const baseShipping = firstField(
           item,
           [
+            // exact DB / typical entity names
+            "ship_cost_std",
+            "shipCostStd",
+            // older generic guesses (keep as fallbacks)
             "shippingCost",
             "shipping_cost",
             "shipping",
@@ -53,10 +57,14 @@ document.addEventListener("DOMContentLoaded", () => {
           ],
           0
         );
-
+        
         const expShipping = firstField(
           item,
           [
+            // exact DB / typical entity names
+            "ship_cost_exp",
+            "shipCostExp",
+            // generic fallbacks
             "expeditedShippingCost",
             "expedited_shipping_cost",
             "expeditedShipping",
@@ -65,10 +73,15 @@ document.addEventListener("DOMContentLoaded", () => {
           ],
           0
         );
-
+        
         const shippingDays = firstField(
           item,
-          ["shippingDays", "shipping_time_days"],
+          [
+            "ship_days",   // DB column
+            "shipDays",    // typical entity name
+            "shippingDays",
+            "shipping_time_days",
+          ],
           null
         );
 
