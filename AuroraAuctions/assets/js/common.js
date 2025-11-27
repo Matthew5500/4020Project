@@ -38,6 +38,7 @@ window.AA = (function () {
         ...(options.headers || {}),
       },
     };
+
     if (options.body) {
       init.body = JSON.stringify(options.body);
     }
@@ -53,9 +54,10 @@ window.AA = (function () {
 
     if (!res.ok) {
       const msg =
-        (data && data.error) ||
-        (typeof data === "string" ? data : "") ||
-        `HTTP ${res.status}`;
+        (data &&
+          (data.message || data.error || data.reason || data.details)) ||
+        res.statusText ||
+        "Request failed";
       throw new Error(msg);
     }
 
@@ -94,7 +96,9 @@ window.AA = (function () {
   function initNav() {
     const user = getUser();
     const logoutBtn = document.getElementById("nav-logout");
-    const loginLink = document.getElementById("nav-login");
+    const loginLink =
+      document.getElementById("nav-login") ||
+      document.getElementById("home-auth-cta");
 
     if (logoutBtn) {
       if (user) {
@@ -110,7 +114,11 @@ window.AA = (function () {
 
     if (loginLink) {
       if (user) {
-        loginLink.textContent = `Hi, ${user.username}`;
+        loginLink.textContent = `Welcome ${user.username}`;
+        loginLink.classList.add("aa-nav-welcome");
+      } else {
+        loginLink.textContent = "Sign In / Sign Up";
+        loginLink.classList.remove("aa-nav-welcome");
       }
     }
   }
@@ -124,7 +132,19 @@ window.AA = (function () {
       items.slice(0, 4).forEach((item) => {
         const card = document.createElement("article");
         card.className = "aa-card-small";
+        const imgSrc =
+          item.imageUrl ||
+          item.coverImageUrl ||
+          item.cover_image_url ||
+          "https://picsum.photos/seed/aurora/400/240";
+
         card.innerHTML = `
+          <img
+            src="${imgSrc}"
+            alt="${item.title}"
+            class="aa-card-thumb"
+            onerror="this.src='https://picsum.photos/seed/aurora/400/240'"
+          />
           <h3>${item.title}</h3>
           <p>${item.description || ""}</p>
           <p><strong>${formatMoney(

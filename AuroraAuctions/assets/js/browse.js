@@ -12,13 +12,67 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnEnded = document.getElementById("btn-show-ended");
   const btnMine = document.getElementById("btn-show-mine");
 
+  let countdownTimer = null;
+
+  function startCountdown() {
+    if (!tbody) return;
+
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+
+    const update = () => {
+      const cells = tbody.querySelectorAll("td[data-end-time]");
+      const now = Date.now();
+
+      cells.forEach((cell) => {
+        const iso = cell.dataset.endTime;
+        if (!iso) return;
+
+        const end = new Date(iso).getTime();
+        if (Number.isNaN(end)) {
+          cell.textContent = "—";
+          return;
+        }
+
+        const diff = end - now;
+
+        cell.classList.remove("aa-time-warning", "aa-time-danger");
+
+        if (diff <= 0) {
+          cell.textContent = "Ended";
+          return;
+        }
+
+        const sec = Math.floor(diff / 1000);
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+
+        cell.textContent = `${h}h ${m}m ${s}s`;
+
+        if (diff <= 5 * 60 * 1000) {
+          cell.classList.add("aa-time-danger");
+        } else if (diff <= 10 * 60 * 1000) {
+          cell.classList.add("aa-time-warning");
+        }
+      });
+    };
+
+    update();
+    countdownTimer = setInterval(update, 1000);
+  }
+
   async function loadItems(mode) {
     // mode can be:
     //  - "active" | "ended" | "mine"
     //  - { q: "keyword" } for search
     //  - undefined for "all"
 
-    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
+    if (!tbody) return;
+
+    tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
 
     try {
       let items;
@@ -29,8 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (mode === "ended") {
           items = await AA.api("/items/ended");
         } else if (mode === "mine") {
+          // FIX: My Listings now uses sellerId instead of ownerId
           items = await AA.api(
-            `/items?ownerId=${encodeURIComponent(user.userId)}`
+            `/items?sellerId=${encodeURIComponent(user.userId)}`
           );
         } else {
           items = await AA.api("/items");
@@ -45,7 +100,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!Array.isArray(items) || items.length === 0) {
         tbody.innerHTML =
-          "<tr><td colspan='6' class='aa-muted small'>No items found.</td></tr>";
+          "<tr><td colspan='7' class='aa-muted small'>No items found.</td></tr>";
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
         return;
       }
 
@@ -62,14 +121,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const tr = document.createElement("tr");
-        const price = item.currentPrice || item.startingPrice;
+        const price = item.currentPrice || item.startingPrice || item.price;
+        const endIso = item.endTime || item.end_time;
+        const imgSrc =
+          item.imageUrl ||
+          item.coverImageUrl ||
+          item.cover_image_url ||
+          "https://picsum.photos/seed/aurora-thumb/120/80";
 
         tr.innerHTML = `
+          <td>
+            <img
+              src="${imgSrc}"
+              alt="${item.title}"
+              class="aa-list-thumb"
+              onerror="this.src='https://picsum.photos/seed/aurora-thumb/120/80'"
+            />
+          </td>
           <td>${item.title}</td>
           <td>${AA.formatMoney(price)}</td>
           <td>${item.auctionType}</td>
           <td>${item.status}</td>
-          <td>${AA.timeRemaining(item.endTime)}</td>
+          <td
+            class="aa-ends-cell"
+            data-end-time="${endIso || ""}"
+          >
+            ${AA.timeRemaining(endIso)}
+          </td>
           <td>
             <a class="aa-btn secondary"
                href="item.html?id=${encodeURIComponent(id)}">
@@ -80,10 +158,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tbody.appendChild(tr);
       });
+
+      // Start / restart countdown after rows are rendered
+      startCountdown();
     } catch (err) {
       console.error("Browse loadItems error:", err);
       tbody.innerHTML =
-        "<tr><td colspan='6' class='aa-muted small'>Failed to load items.</td></tr>";
+        "<tr><td colspan='7' class='aa-muted small'>Failed to load items.</td></tr>";
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
       if (AA.showToast) {
         AA.showToast(
           `Failed to load items: ${err.message || "Unknown error"}`,
