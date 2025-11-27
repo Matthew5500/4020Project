@@ -1,12 +1,20 @@
+// assets/js/item.js
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
   if (!user) return;
 
   AA.initNav();
 
-  const itemId = AA.getQueryParam("id");
+  // 🔹 Get ID from query string (?id=123 or ?itemId=123)
+  const itemId =
+    AA.getQueryParam("id") || AA.getQueryParam("itemId");
+
   if (!itemId) {
-    alert("Missing item id");
+    AA.showToast(
+      "Missing item id in the URL.",
+      "error"
+    );
+    // Go back to browse if we have no id
     window.location.href = "browse.html";
     return;
   }
@@ -44,20 +52,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadItem() {
     try {
+      // 🔹 Now itemId is guaranteed to be a real value, not undefined
       const item = await AA.api(`/items/${encodeURIComponent(itemId)}`);
       currentItem = item;
 
       elTitle.textContent = item.title;
       elDesc.textContent = item.description || "No description.";
-      elImg.src = item.coverImageUrl || "https://picsum.photos/seed/placeholder/600/400";
-      elPrice.textContent = AA.formatMoney(item.currentPrice || item.startingPrice);
+      elImg.src =
+        item.coverImageUrl || "https://picsum.photos/seed/placeholder/600/400";
+      elPrice.textContent = AA.formatMoney(
+        item.currentPrice || item.startingPrice
+      );
       elType.textContent = item.auctionType;
       elStatus.textContent = item.status;
-      elEnd.textContent = AA.formatDateTime(item.endTime) +
-        (item.status === "ACTIVE" ? ` (${AA.timeRemaining(item.endTime)})` : "");
+      elEnd.textContent =
+        AA.formatDateTime(item.endTime) +
+        (item.status === "ACTIVE"
+          ? ` (${AA.timeRemaining(item.endTime)})`
+          : "");
       elSeller.textContent = `Seller #${item.sellerId}`;
 
-      // show correct sections
       forwardSection.classList.add("hidden");
       dutchSection.classList.add("hidden");
       endedSection.classList.add("hidden");
@@ -65,36 +79,35 @@ document.addEventListener("DOMContentLoaded", () => {
       if (item.status === "ACTIVE") {
         if (item.auctionType === "FORWARD") {
           forwardSection.classList.remove("hidden");
-          loadBids();
+          await loadBids();
         } else if (item.auctionType === "DUTCH") {
           dutchSection.classList.remove("hidden");
         }
       } else if (item.status === "ENDED") {
         endedSection.classList.remove("hidden");
         if (item.currentWinnerId) {
-          winnerInfo.textContent =
-            `Winner: user #${item.currentWinnerId} • Final price: ${AA.formatMoney(
-              item.currentPrice
-            )}`;
+          winnerInfo.textContent = `Winner: user #${
+            item.currentWinnerId
+          } • Final price: ${AA.formatMoney(item.currentPrice)}`;
           if (item.currentWinnerId === user.userId && item.paymentStatus !== "PAID") {
             payBtn.classList.remove("hidden");
           } else {
             payBtn.classList.add("hidden");
           }
         } else {
-          winnerInfo.textContent = "No winner – item had no valid bids / accepts.";
+          winnerInfo.textContent =
+            "No winner – item had no valid bids or accepts.";
           payBtn.classList.add("hidden");
         }
       }
 
-      // seller controls
       if (item.sellerId === user.userId && item.status === "ACTIVE") {
         sellerControls.classList.remove("hidden");
       } else {
         sellerControls.classList.add("hidden");
       }
     } catch (err) {
-      alert("Failed to load item: " + err.message);
+      AA.showToast("Failed to load item: " + err.message, "error");
       console.error(err);
     }
   }
@@ -120,85 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  if (bidForm) {
-    bidForm.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      if (!currentItem) return;
-      const amount = Number(bidAmountInput.value);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        bidMsg.textContent = "Please enter a valid bid amount.";
-        return;
-      }
-      try {
-        await AA.api(`/items/${encodeURIComponent(itemId)}/bids`, {
-          method: "POST",
-          body: {
-            bidderId: user.userId,
-            amount,
-          },
-        });
-        bidMsg.textContent = "Bid placed successfully.";
-        await loadItem();
-        await loadBids();
-      } catch (err) {
-        bidMsg.textContent = "Bid failed: " + err.message;
-      }
-    });
-  }
-
-  if (btnDutchPrice) {
-    btnDutchPrice.addEventListener("click", async () => {
-      dutchMsg.textContent = "";
-      try {
-        const data = await AA.api(
-          `/items/${encodeURIComponent(itemId)}/dutch/price`
-        );
-        dutchPriceLabel.textContent =
-          "Current price: " + AA.formatMoney(data.currentPrice);
-      } catch (err) {
-        dutchMsg.textContent = "Failed to load Dutch price: " + err.message;
-      }
-    });
-  }
-
-  if (btnDutchAccept) {
-    btnDutchAccept.addEventListener("click", async () => {
-      dutchMsg.textContent = "";
-      if (!confirm("Accept current Dutch price and end the auction?")) return;
-      try {
-        await AA.api(`/items/${encodeURIComponent(itemId)}/dutch/accept`, {
-          method: "POST",
-          body: { buyerId: user.userId },
-        });
-        dutchMsg.textContent = "You bought this item at the current price!";
-        await loadItem();
-      } catch (err) {
-        dutchMsg.textContent = "Accept failed: " + err.message;
-      }
-    });
-  }
-
-  if (btnEndAuction) {
-    btnEndAuction.addEventListener("click", async () => {
-      sellerMsg.textContent = "";
-      if (!confirm("End this auction now?")) return;
-      try {
-        await AA.api(`/items/${encodeURIComponent(itemId)}/end`, {
-          method: "POST",
-        });
-        sellerMsg.textContent = "Auction ended.";
-        await loadItem();
-      } catch (err) {
-        sellerMsg.textContent = "End failed: " + err.message;
-      }
-    });
-  }
-
-  if (payBtn) {
-    payBtn.addEventListener("click", () => {
-      window.location.href = `pay.html?id=${encodeURIComponent(itemId)}`;
-    });
-  }
+  // … keep the rest of your listeners (forward bidding, dutch, end auction, pay) …
 
   loadItem();
 });
