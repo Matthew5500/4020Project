@@ -2,61 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Aurora Auctions – Pay</title>
+  <title>Aurora Auctions – Payment</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="../assets/css/styles.css" />
 </head>
 <body>
+
 <header class="aa-header">
   <div class="aa-logo">Aurora Auctions</div>
   <nav class="aa-nav">
     <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell</a>
     <button id="nav-logout" class="aa-link-button">Logout</button>
   </nav>
 </header>
 
-<main class="aa-main aa-two-column">
-  <section class="aa-card">
-    <h2>Pay for Your Item</h2>
-    <div id="pay-summary" class="aa-pay-summary">
-      <!-- filled by JS using /api/items/{id} -->
-    </div>
+<main class="aa-main">
+  <section class="aa-card aa-card-wide">
+    <h2>Payment</h2>
 
-    <h3>Shipping</h3>
-    <div class="aa-form-row">
-      <label class="aa-radio">
-        <input type="radio" name="shipMethod" value="STANDARD" checked />
-        Standard
-      </label>
-      <label class="aa-radio">
-        <input type="radio" name="shipMethod" value="EXPEDITED" />
-        Expedited (adds extra cost; see UC4 + UC5). 
-      </label>
-    </div>
+    <div class="aa-grid-2">
+      <!-- Left: order summary & shipping selection (UC4) -->
+      <div>
+        <h3>Order summary</h3>
+        <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
+        <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
 
-    <h3>Payment Details</h3>
-    <form id="pay-form" class="aa-form">
-      <label>
-        Card Number
-        <input type="text" name="cardNumber" maxlength="19" required />
-      </label>
-      <label>
-        Name on Card
-        <input type="text" name="cardName" required />
-      </label>
-      <div class="aa-form-row">
-        <label>
-          Expiry (MM/YY)
-          <input type="text" name="cardExpiry" required />
+        <p><strong>Shipping (regular):</strong>
+          <span id="pay-ship-regular"></span>
+        </p>
+
+        <label class="aa-checkbox">
+          <input type="checkbox" id="pay-expedited" />
+          <span id="pay-expedited-label">Expedited shipping (+…)</span>
         </label>
-        <label>
-          CVV
-          <input type="password" name="cardCvv" maxlength="4" required />
-        </label>
+
+        <p class="aa-summary-row">
+          <span>Total (item + shipping):</span>
+          <span id="pay-total"></span>
+        </p>
+
+        <p id="pay-shipping-time" class="aa-muted small"></p>
       </div>
-      <button type="submit" class="aa-btn primary">Submit Payment</button>
-      <p id="pay-message" class="aa-muted small"></p>
-    </form>
+
+      <!-- Right: address & card form (UC5) -->
+      <div>
+        <h3>Billing & Shipping</h3>
+        <div class="aa-box">
+          <p><strong>User:</strong> <span id="pay-user-name"></span></p>
+          <p><strong>Address:</strong><br />
+            <span id="pay-user-address"></span>
+          </p>
+        </div>
+
+        <h3>Credit / Debit Card</h3>
+        <form id="pay-form" class="aa-form">
+          <label>
+            Card number
+            <input type="text" id="card-number" maxlength="19" inputmode="numeric" required />
+          </label>
+          <label>
+            Name on card
+            <input type="text" id="card-name" required />
+          </label>
+          <div class="aa-grid-2">
+            <label>
+              Expiry (MM/YY)
+              <input type="text" id="card-expiry" placeholder="MM/YY" required />
+            </label>
+            <label>
+              CVV
+              <input type="password" id="card-cvv" maxlength="4" inputmode="numeric" required />
+            </label>
+          </div>
+
+          <p id="pay-error" class="aa-error small"></p>
+
+          <button type="submit" class="aa-btn primary">
+            Submit payment
+          </button>
+          <a href="browse.html" class="aa-btn secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
   </section>
 </main>
 
