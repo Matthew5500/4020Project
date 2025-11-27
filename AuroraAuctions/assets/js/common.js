@@ -1,6 +1,6 @@
-// Simple global namespace to avoid polluting window
+// assets/js/common.js
 window.AA = (function () {
-  const API_BASE = "/api"; // goes through Nginx proxy to mid-tier
+  const API_BASE = "/api"; // via Nginx to mid-tier
 
   function getUser() {
     const raw = sessionStorage.getItem("user");
@@ -41,18 +41,24 @@ window.AA = (function () {
     if (options.body) {
       init.body = JSON.stringify(options.body);
     }
+
     const res = await fetch(url, init);
-    let data = null;
     const text = await res.text();
+    let data = null;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
       data = text;
     }
+
     if (!res.ok) {
-      const message = (data && data.error) || text || `HTTP ${res.status}`;
-      throw new Error(message);
+      const msg =
+        (data && data.error) ||
+        (typeof data === "string" ? data : "") ||
+        `HTTP ${res.status}`;
+      throw new Error(msg);
     }
+
     return data;
   }
 
@@ -121,7 +127,9 @@ window.AA = (function () {
         card.innerHTML = `
           <h3>${item.title}</h3>
           <p>${item.description || ""}</p>
-          <p><strong>${formatMoney(item.currentPrice || item.startingPrice)}</strong></p>
+          <p><strong>${formatMoney(
+            item.currentPrice || item.startingPrice
+          )}</strong></p>
           <p class="aa-muted small">
             ${item.auctionType} • ${item.status}
           </p>
@@ -138,6 +146,29 @@ window.AA = (function () {
     }
   }
 
+  // --- simple toast popup ---
+
+  let toastTimer = null;
+
+  function showToast(title, detail = "", type = "info") {
+    let el = document.getElementById("aa-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "aa-toast";
+      document.body.appendChild(el);
+    }
+    el.className = `aa-toast aa-toast-${type}`;
+    el.innerHTML = `<strong>${title}</strong>${
+      detail ? `<div>${detail}</div>` : ""
+    }`;
+    el.style.opacity = "1";
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.style.opacity = "0";
+    }, 4000);
+  }
+
   return {
     api,
     getUser,
@@ -149,5 +180,6 @@ window.AA = (function () {
     getQueryParam,
     initNav,
     loadFeatured,
+    showToast,
   };
 })();
