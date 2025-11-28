@@ -23,6 +23,7 @@ window.AA = (function () {
   function requireLogin() {
     const user = getUser();
     if (!user) {
+      // Inner pages live under /pages/, so go up one level then into pages
       window.location.href = "../pages/login.html";
       return null;
     }
@@ -95,12 +96,15 @@ window.AA = (function () {
     const user = getUser();
     const logoutBtn = document.getElementById("nav-logout");
     const loginLink = document.getElementById("nav-login");
+    const heroAuthBtn = document.getElementById("hero-auth-btn");
 
+    // Show/hide the top-right Logout button in the shared nav
     if (logoutBtn) {
       if (user) {
         logoutBtn.classList.remove("hidden");
         logoutBtn.addEventListener("click", () => {
           setUser(null);
+          // From both /index.html and /pages/*.html this resolves to /pages/login.html
           window.location.href = "../pages/login.html";
         });
       } else {
@@ -108,9 +112,25 @@ window.AA = (function () {
       }
     }
 
-    if (loginLink) {
+    // Optional "nav-login" placeholder that we can use to greet the user
+    if (loginLink && user) {
+      loginLink.textContent = `Hi, ${user.username}`;
+    }
+
+    // Hero button on the home page: swap between "Sign In / Sign Up" and "Log Out"
+    if (heroAuthBtn) {
       if (user) {
-        loginLink.textContent = `Hi, ${user.username}`;
+        heroAuthBtn.textContent = "Log Out";
+        // Override the default link so this behaves as a logout action
+        heroAuthBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          setUser(null);
+          window.location.href = "pages/login.html";
+        });
+      } else {
+        // Default state for visitors who are not signed in
+        heroAuthBtn.textContent = "Sign In / Sign Up";
+        heroAuthBtn.setAttribute("href", "pages/login.html");
       }
     }
   }
