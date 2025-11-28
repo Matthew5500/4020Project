@@ -8,10 +8,9 @@
 </head>
 <body>
   <header class="aa-header">
-    <!-- Clickable logo back to home -->
-    <a href="../index.html" class="aa-logo">Aurora Auctions</a>
+    <div class="aa-logo">Aurora Auctions</div>
     <nav class="aa-nav">
-      <!-- From /pages/ these relative links already work correctly -->
+      <a href="../index.html">Home</a>
       <a href="browse.html">Browse</a>
       <a href="sell.html">Sell</a>
       <a href="checkout.html">Checkout</a>
@@ -22,8 +21,6 @@
   <main class="aa-main">
     <section class="aa-card">
       <h2>Browse Catalogue</h2>
-
-      <!-- Removed the image that was previously here -->
 
       <form id="search-form" class="aa-form-inline">
         <input type="text" id="search-query" placeholder="Search by keyword" />
@@ -36,6 +33,7 @@
       <table class="aa-table">
         <thead>
           <tr>
+            <th class="aa-col-image">Image</th>
             <th>Item</th>
             <th>Current Price</th>
             <th>Type</th>
