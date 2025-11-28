@@ -436,3 +436,17 @@ select:focus {
 .aa-toast-info {
   border-color: var(--border);
 }
+
+/* Make the expedited-shipping checkbox row look consistent */
+.aa-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* Slight extra vertical space between "CVV" label and its input */
+#card-cvv {
+  margin-top: 0.25rem;
+}
