@@ -2,6 +2,8 @@
 window.AA = (function () {
   const API_BASE = "/api"; // via Nginx to mid-tier
 
+  // ----------------- auth helpers -----------------
+
   function getUser() {
     const raw = sessionStorage.getItem("user");
     if (!raw) return null;
@@ -23,12 +25,14 @@ window.AA = (function () {
   function requireLogin() {
     const user = getUser();
     if (!user) {
-      // Inner pages live under /pages/, so go up one level then into pages
+      // All protected pages live in /pages/
       window.location.href = "../pages/login.html";
       return null;
     }
     return user;
   }
+
+  // ----------------- API helper -----------------
 
   async function api(path, options = {}) {
     const url = `${API_BASE}${path}`;
@@ -39,6 +43,7 @@ window.AA = (function () {
         ...(options.headers || {}),
       },
     };
+
     if (options.body) {
       init.body = JSON.stringify(options.body);
     }
@@ -62,6 +67,8 @@ window.AA = (function () {
 
     return data;
   }
+
+  // ----------------- formatting helpers -----------------
 
   function formatMoney(n) {
     if (n == null) return "—";
@@ -92,19 +99,40 @@ window.AA = (function () {
     return params.get(name);
   }
 
+  // ----------------- image helper -----------------
+
+  /**
+   * Returns the best image URL for an item:
+   * - If the backend provides item.coverImageUrl, use that.
+   * - Otherwise, fall back to your uploaded placeholder image.
+   *
+   * Place your image at:
+   *   AuroraAuctions/assets/img/item-placeholder.png
+   */
+  function getItemImageUrl(item) {
+    if (item && item.coverImageUrl) {
+      return item.coverImageUrl;
+    }
+
+    const isInPages = window.location.pathname.includes("/pages/");
+    const base = isInPages ? "../" : "";
+    return base + "assets/img/item-placeholder.png";
+  }
+
+  // ----------------- navigation -----------------
+
   function initNav() {
     const user = getUser();
     const logoutBtn = document.getElementById("nav-logout");
     const loginLink = document.getElementById("nav-login");
     const heroAuthBtn = document.getElementById("hero-auth-btn");
 
-    // Show/hide the top-right Logout button in the shared nav
+    // Show/hide the top-right Logout button
     if (logoutBtn) {
       if (user) {
         logoutBtn.classList.remove("hidden");
         logoutBtn.addEventListener("click", () => {
           setUser(null);
-          // From both /index.html and /pages/*.html this resolves to /pages/login.html
           window.location.href = "../pages/login.html";
         });
       } else {
@@ -112,61 +140,70 @@ window.AA = (function () {
       }
     }
 
-    // Optional "nav-login" placeholder that we can use to greet the user
+    // Optional greeting link
     if (loginLink && user) {
       loginLink.textContent = `Hi, ${user.username}`;
     }
 
-    // Hero button on the home page: swap between "Sign In / Sign Up" and "Log Out"
+    // Hero button on the home page
     if (heroAuthBtn) {
       if (user) {
         heroAuthBtn.textContent = "Log Out";
-        // Override the default link so this behaves as a logout action
         heroAuthBtn.addEventListener("click", (e) => {
           e.preventDefault();
           setUser(null);
           window.location.href = "pages/login.html";
         });
       } else {
-        // Default state for visitors who are not signed in
         heroAuthBtn.textContent = "Sign In / Sign Up";
         heroAuthBtn.setAttribute("href", "pages/login.html");
       }
     }
   }
 
+  // ----------------- featured items on home -----------------
+
   async function loadFeatured() {
     const container = document.getElementById("featured-list");
     if (!container) return;
+
     try {
       const items = await api("/items/active");
       container.innerHTML = "";
+
       items.slice(0, 4).forEach((item) => {
         const card = document.createElement("article");
         card.className = "aa-card-small";
+
+        const imgUrl = getItemImageUrl(item);
+        const price = item.currentPrice ?? item.startingPrice;
+        const itemId = item.id ?? item.itemId; // support both field names
+
         card.innerHTML = `
-          <h3>${item.title}</h3>
+          <div class="aa-card-image aa-item-image" style="margin-bottom: 0.75rem;">
+            <img src="${imgUrl}" alt="${item.title || "Item"}" />
+          </div>
+          <h3>${item.title || ""}</h3>
           <p>${item.description || ""}</p>
-          <p><strong>${formatMoney(
-            item.currentPrice || item.startingPrice
-          )}</strong></p>
+          <p><strong>${formatMoney(price)}</strong></p>
           <p class="aa-muted small">
-            ${item.auctionType} • ${item.status}
+            ${(item.auctionType || "").toUpperCase()} • ${(item.status || "").toUpperCase()}
           </p>
           <a class="aa-btn secondary" href="pages/item.html?id=${encodeURIComponent(
-            item.itemId
+            itemId
           )}">View</a>
         `;
+
         container.appendChild(card);
       });
     } catch (err) {
+      console.error("Featured load failed:", err);
       container.innerHTML =
         '<p class="aa-muted small">Unable to load featured items.</p>';
-      console.error("Featured load failed:", err.message);
     }
   }
 
-  // --- simple toast popup ---
+  // ----------------- toast helper -----------------
 
   let toastTimer = null;
 
@@ -189,6 +226,8 @@ window.AA = (function () {
     }, 4000);
   }
 
+  // ----------------- public API -----------------
+
   return {
     api,
     getUser,
@@ -201,5 +240,6 @@ window.AA = (function () {
     initNav,
     loadFeatured,
     showToast,
+    getItemImageUrl,
   };
 })();
