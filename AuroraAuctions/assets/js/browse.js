@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tbody = document.getElementById("items-tbody");
   const searchForm = document.getElementById("search-form");
+  const searchInput = document.getElementById("search-query");
+
   const btnActive = document.getElementById("btn-show-active");
   const btnEnded = document.getElementById("btn-show-ended");
   const btnMine = document.getElementById("btn-show-mine");
@@ -33,9 +35,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return td;
     }
 
-    const end = new Date(endIso).getTime();
+    const endTs = new Date(endIso).getTime();
     const now = Date.now();
-    const diff = end - now;
+    const diff = endTs - now;
 
     if (diff <= 0) {
       td.textContent = "Ended";
@@ -43,11 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return td;
     }
 
-    const sec = Math.floor(diff / 1000);
-    const mins = Math.floor(sec / 60);
+    const totalSeconds = Math.floor(diff / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const remaining = AA.timeRemaining(endIso);
 
-    const remText = AA.timeRemaining(endIso);
-    td.textContent = remText;
+    td.textContent = remaining;
 
     if (mins <= 5) {
       td.classList.add("aa-time-danger");
@@ -59,33 +61,52 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadItems(mode) {
-    // mode can be:
-    //  - "active" | "ended" | "mine"
-    //  - { q: "keyword" } for search
-    //  - undefined for "all"
-
     tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
 
     try {
-      let items;
+      let allItems = await AA.api("/items");
+      if (!Array.isArray(allItems)) allItems = [];
 
-      if (typeof mode === "string") {
-        if (mode === "active") {
-          items = await AA.api("/items/active");
-        } else if (mode === "ended") {
-          items = await AA.api("/items/ended");
-        } else if (mode === "mine") {
-          items = await AA.api("/items/mine");
-        } else {
-          items = await AA.api("/items");
-        }
+      let items = allItems;
+
+      if (mode === "active") {
+        items = allItems.filter((it) => {
+          const endIso = it.endTime || it.end_time;
+          const ended = endIso && AA.timeRemaining(endIso) === "Ended";
+          const status = (it.status || "ACTIVE").toUpperCase();
+          return status === "ACTIVE" && !ended;
+        });
+      } else if (mode === "ended") {
+        items = allItems.filter((it) => {
+          const endIso = it.endTime || it.end_time;
+          const ended = endIso && AA.timeRemaining(endIso) === "Ended";
+          const status = (it.status || "").toUpperCase();
+          return ended || status === "ENDED";
+        });
+      } else if (mode === "mine") {
+        items = allItems.filter((it) => {
+          const owner =
+            it.sellerId ??
+            it.ownerId ??
+            it.owner_id ??
+            it.seller_id ??
+            null;
+          return owner != null && String(owner) === String(user.userId);
+        });
       } else if (mode && typeof mode === "object" && mode.q) {
-        items = await AA.api(`/items/search?q=${encodeURIComponent(mode.q)}`);
-      } else {
-        items = await AA.api("/items");
+        const q = mode.q.toLowerCase();
+        items = allItems.filter((it) => {
+          const haystack =
+            (it.title || "") +
+            " " +
+            (it.description || "") +
+            " " +
+            (it.keywords || "");
+          return haystack.toLowerCase().includes(q);
+        });
       }
 
-      if (!Array.isArray(items) || items.length === 0) {
+      if (!items.length) {
         tbody.innerHTML =
           "<tr><td colspan='7' class='aa-muted'>No items found.</td></tr>";
         return;
@@ -95,27 +116,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       items.forEach((item) => {
         const id = item.itemId ?? item.id ?? item.item_id;
-        if (!id) {
-          console.warn("Item has no id field:", item);
-          return;
-        }
+        if (!id) return;
 
         const tr = document.createElement("tr");
-
-        const price =
-          item.currentPrice ??
-          item.curPrice ??
-          item.current_price ??
-          item.startingPrice ??
-          item.start_price ??
-          0;
-
-        const endIso = item.endTime;
-        const status =
-          item.status ||
-          (endIso && AA.timeRemaining(endIso) === "Ended"
-            ? "ENDED"
-            : "ACTIVE");
 
         // image cell
         const imgTd = document.createElement("td");
@@ -133,14 +136,27 @@ document.addEventListener("DOMContentLoaded", () => {
         const titleTd = document.createElement("td");
         titleTd.textContent = item.title || `Item #${id}`;
 
+        const price =
+          item.currentPrice ??
+          item.curPrice ??
+          item.current_price ??
+          item.startingPrice ??
+          item.start_price ??
+          0;
         const priceTd = document.createElement("td");
         priceTd.textContent = AA.formatMoney(price);
 
         const typeTd = document.createElement("td");
         typeTd.textContent = item.auctionType || item.type || "";
 
+        // status: if time says ended, override to ENDED
+        const endIso = item.endTime || item.end_time;
+        const ended = endIso && AA.timeRemaining(endIso) === "Ended";
+        const statusText = ended
+          ? "ENDED"
+          : item.status || "ACTIVE";
         const statusTd = document.createElement("td");
-        statusTd.textContent = status;
+        statusTd.textContent = statusText;
 
         const timeTd = buildTimeCell(endIso);
 
@@ -163,40 +179,42 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.appendChild(tr);
       });
     } catch (err) {
-      console.error("Load items failed:", err);
-      tbody.innerHTML = `<tr><td colspan='7' class='aa-muted'>Failed to load items.</td></tr>`;
+      console.error("Failed to load items:", err);
+      tbody.innerHTML =
+        "<tr><td colspan='7' class='aa-muted'>Failed to load items.</td></tr>";
     }
   }
 
-  // Search (UC2.1)
-  if (searchForm) {
+  // Search form
+  if (searchForm && searchInput) {
     searchForm.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const qInput = searchForm.querySelector("input[name='q']");
-      const q = qInput ? qInput.value.trim() : "";
+      const q = searchInput.value.trim();
       if (!q) {
-        loadItems("active");
         setFilterActive(btnActive);
+        loadItems("active");
       } else {
+        setFilterActive(null); // clear highlight when doing text search
         loadItems({ q });
-        setFilterActive(null);
       }
     });
   }
 
-  // Filter buttons (UC2.2 / UC2.3 / UC2.4)
+  // Filter buttons
   if (btnActive) {
     btnActive.addEventListener("click", () => {
       setFilterActive(btnActive);
       loadItems("active");
     });
   }
+
   if (btnEnded) {
     btnEnded.addEventListener("click", () => {
       setFilterActive(btnEnded);
       loadItems("ended");
     });
   }
+
   if (btnMine) {
     btnMine.addEventListener("click", () => {
       setFilterActive(btnMine);
@@ -204,7 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Initial load: show active auctions
+  // Initial load
   setFilterActive(btnActive);
   loadItems("active");
 });
