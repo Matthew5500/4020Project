@@ -6,25 +6,45 @@ document.addEventListener("DOMContentLoaded", () => {
   AA.initNav();
 
   const elSearchInput = document.getElementById("search-keyword");
-  const elBtnSearch = document.getElementById("tab-search");
-  const elBtnActive = document.getElementById("tab-active");
-  const elBtnEnded = document.getElementById("tab-ended");
-  const elBtnMine = document.getElementById("tab-mine");
   const elTableBody = document.getElementById("items-tbody");
 
-  let currentTab = "active"; // 'search' | 'active' | 'ended' | 'mine'
+  // --- find the four filter buttons by their visible label (robust to ID changes) ---
+  const allButtons = Array.from(document.querySelectorAll("button, a"));
+  const findBtn = (label) =>
+    allButtons.find(
+      (b) => b.textContent && b.textContent.trim().toLowerCase() === label
+    );
+
+  const elBtnSearch = findBtn("search");
+  const elBtnActive = findBtn("active");
+  const elBtnEnded = findBtn("ended");
+  const elBtnMine = findBtn("my listings");
+
+  let currentTab = "active";
   let items = [];
   let countdownTimer = null;
 
-  function setActiveTab(tab) {
+  function setActiveTab(tab, clickedBtn) {
     currentTab = tab;
-    [elBtnSearch, elBtnActive, elBtnEnded, elBtnMine].forEach((btn) =>
-      btn && btn.classList.remove("active")
+
+    const filterButtons = [elBtnSearch, elBtnActive, elBtnEnded, elBtnMine].filter(
+      Boolean
     );
-    if (tab === "search" && elBtnSearch) elBtnSearch.classList.add("active");
-    if (tab === "active" && elBtnActive) elBtnActive.classList.add("active");
-    if (tab === "ended" && elBtnEnded) elBtnEnded.classList.add("active");
-    if (tab === "mine" && elBtnMine) elBtnMine.classList.add("active");
+    filterButtons.forEach((btn) => btn.classList.remove("active"));
+    if (clickedBtn) clickedBtn.classList.add("active");
+  }
+
+  // ---- helpers for images + time ----
+
+  function getImageUrl(item) {
+    // Try multiple possible JSON fields, then fallback to default
+    return (
+      item.coverImageUrl ||
+      item.cover_image_url ||
+      item.imageUrl ||
+      item.image_url ||
+      "../assets/img/no-image.png"
+    );
   }
 
   function renderTable() {
@@ -33,47 +53,55 @@ document.addEventListener("DOMContentLoaded", () => {
     items.forEach((item) => {
       const tr = document.createElement("tr");
 
+      // image col
       const imgTd = document.createElement("td");
       imgTd.className = "aa-col-image";
       const img = document.createElement("img");
       img.className = "aa-table-thumb";
-      img.src = item.coverImageUrl || "../assets/img/no-image.png";
+      img.src = getImageUrl(item);
       img.alt = item.title || "Item image";
       imgTd.appendChild(img);
       tr.appendChild(imgTd);
 
+      // title
       const tdTitle = document.createElement("td");
       tdTitle.textContent = item.title || "(Untitled)";
       tr.appendChild(tdTitle);
 
+      // current price
       const tdPrice = document.createElement("td");
-      tdPrice.textContent = AA.formatMoney(item.currentPrice);
+      const price = item.currentPrice ?? item.current_price ?? 0;
+      tdPrice.textContent = AA.formatMoney(price);
       tr.appendChild(tdPrice);
 
+      // type
       const tdType = document.createElement("td");
-      tdType.textContent = item.auctionType || "FORWARD";
+      tdType.textContent = item.auctionType || item.auction_type || "FORWARD";
       tr.appendChild(tdType);
 
+      // status
       const tdStatus = document.createElement("td");
-      const remainingText = AA.timeRemaining(item.endTime);
-      const ended = remainingText === "Ended";
-      tdStatus.textContent = ended ? "ENDED" : (item.status || "ACTIVE");
-      if (ended) tdStatus.classList.add("aa-time-danger");
+      tdStatus.textContent = (item.status || "ACTIVE").toUpperCase();
       tr.appendChild(tdStatus);
 
+      // ends / remaining
       const tdEnds = document.createElement("td");
-      tdEnds.dataset.endTime = item.endTime || "";
-      tdEnds.textContent =
-        !item.endTime
-          ? "—"
-          : (remainingText === "Ended"
-              ? "Ended"
-              : remainingText);
-      if (remainingText === "Ended") {
-        tdEnds.classList.add("aa-time-danger");
+      const endTime = item.endTime || item.end_time || item.endsAt;
+      tdEnds.dataset.endTime = endTime || "";
+      if (!endTime) {
+        tdEnds.textContent = "—";
+      } else {
+        const txt = AA.timeRemaining(endTime);
+        tdEnds.textContent = txt === "Ended" ? "Ended" : txt;
+        if (txt === "Ended") {
+          tdEnds.classList.add("aa-time-danger");
+          tdStatus.textContent = "ENDED";
+          tdStatus.classList.add("aa-time-danger");
+        }
       }
       tr.appendChild(tdEnds);
 
+      // action
       const tdAction = document.createElement("td");
       tdAction.style.textAlign = "right";
       const btn = document.createElement("button");
@@ -81,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.textContent = "View";
       btn.addEventListener("click", () => {
         window.location.href = `item.html?id=${encodeURIComponent(
-          item.itemId
+          item.itemId ?? item.id
         )}`;
       });
       tdAction.appendChild(btn);
@@ -93,17 +121,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startCountdown() {
     if (countdownTimer) clearInterval(countdownTimer);
+
     countdownTimer = setInterval(() => {
       const rows = elTableBody.querySelectorAll("tr");
       rows.forEach((tr) => {
-        const tdEnds = tr.children[5]; // ends / remaining col
-        const tdStatus = tr.children[4]; // status col
+        const tdStatus = tr.children[4];
+        const tdEnds = tr.children[5];
         const endIso = tdEnds.dataset.endTime;
         if (!endIso) return;
-        const text = AA.timeRemaining(endIso);
-        const ended = text === "Ended";
 
-        tdEnds.textContent = ended ? "Ended" : text;
+        const text = AA.timeRemaining(endIso);
+        tdEnds.textContent = text === "Ended" ? "Ended" : text;
         tdEnds.classList.remove("aa-time-danger", "aa-time-warning");
 
         const diffMs = new Date(endIso).getTime() - Date.now();
@@ -122,99 +150,101 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
-  async function loadActive() {
-    setActiveTab("active");
+  // ---- API loaders (back to /api/items/...) ----
+
+  async function loadActive(clickedBtn) {
     try {
-      items = await AA.api("/items/active");
+      const data = await AA.api("/api/items/active");
+      items = data || [];
       renderTable();
       startCountdown();
+      setActiveTab("active", clickedBtn || elBtnActive);
     } catch (err) {
       console.error(err);
       AA.showToast("Failed to load active items.", "error");
     }
   }
 
-  async function loadEnded() {
-    setActiveTab("ended");
+  async function loadEnded(clickedBtn) {
     try {
-      items = await AA.api("/items/ended");
+      const data = await AA.api("/api/items/ended");
+      items = data || [];
       renderTable();
       startCountdown();
+      setActiveTab("ended", clickedBtn || elBtnEnded);
     } catch (err) {
       console.error(err);
       AA.showToast("Failed to load ended items.", "error");
     }
   }
 
-  async function loadMine() {
-    setActiveTab("mine");
+  async function loadMine(clickedBtn) {
     try {
-      const all = await AA.api("/items");
-      items = all.filter((it) => it.sellerId === user.userId);
+      const all = await AA.api("/api/items");
+      items = (all || []).filter(
+        (it) => (it.sellerId ?? it.seller_id) === user.userId
+      );
       renderTable();
       startCountdown();
+      setActiveTab("mine", clickedBtn || elBtnMine);
     } catch (err) {
       console.error(err);
       AA.showToast("Failed to load your listings.", "error");
     }
   }
 
-  async function doSearch() {
-    const query = elSearchInput.value.trim();
-    setActiveTab("search");
+  async function doSearch(clickedBtn) {
+    const query = (elSearchInput?.value || "").trim();
     try {
       const path = query
-        ? `/items/search?q=${encodeURIComponent(query)}`
-        : "/items/active";
-      items = await AA.api(path);
+        ? `/api/items/search?q=${encodeURIComponent(query)}`
+        : "/api/items/active";
+
+      const data = await AA.api(path);
+      items = data || [];
       renderTable();
       startCountdown();
+      setActiveTab("search", clickedBtn || elBtnSearch);
     } catch (err) {
       console.error(err);
       AA.showToast("Search failed.", "error");
     }
   }
 
-  // ---------- Wire up UI ----------
+  // ---- wire up events ----
 
-  if (elBtnSearch) {
+  elBtnSearch &&
     elBtnSearch.addEventListener("click", (e) => {
       e.preventDefault();
-      doSearch();
+      doSearch(e.currentTarget);
     });
-  }
 
-  if (elBtnActive) {
+  elBtnActive &&
     elBtnActive.addEventListener("click", (e) => {
       e.preventDefault();
-      loadActive();
+      loadActive(e.currentTarget);
     });
-  }
 
-  if (elBtnEnded) {
+  elBtnEnded &&
     elBtnEnded.addEventListener("click", (e) => {
       e.preventDefault();
-      loadEnded();
+      loadEnded(e.currentTarget);
     });
-  }
 
-  if (elBtnMine) {
+  elBtnMine &&
     elBtnMine.addEventListener("click", (e) => {
       e.preventDefault();
-      loadMine();
+      loadMine(e.currentTarget);
     });
-  }
 
-  // Enter to search
-  if (elSearchInput) {
+  elSearchInput &&
     elSearchInput.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        doSearch();
+        doSearch(elBtnSearch || null);
       }
     });
-  }
 
-  // Initial load: active tab
-  loadActive();
+  // initial load – same as “Active” tab
+  loadActive(elBtnActive || null);
 });
