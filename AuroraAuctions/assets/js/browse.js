@@ -1,250 +1,201 @@
 // assets/js/browse.js
+
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
   if (!user) return;
 
   AA.initNav();
 
-  const elSearchInput = document.getElementById("search-keyword");
-  const elTableBody = document.getElementById("items-tbody");
+  const tbody = document.getElementById("browse-body");
+  const msg = document.getElementById("browse-message");
+  const searchInput = document.getElementById("browse-search");
 
-  // --- find the four filter buttons by their visible label (robust to ID changes) ---
-  const allButtons = Array.from(document.querySelectorAll("button, a"));
-  const findBtn = (label) =>
-    allButtons.find(
-      (b) => b.textContent && b.textContent.trim().toLowerCase() === label
-    );
+  const btnSearch = document.getElementById("btn-search");
+  const tabActive = document.getElementById("tab-active");
+  const tabEnded = document.getElementById("tab-ended");
+  const tabMine = document.getElementById("tab-mine");
 
-  const elBtnSearch = findBtn("search");
-  const elBtnActive = findBtn("active");
-  const elBtnEnded = findBtn("ended");
-  const elBtnMine = findBtn("my listings");
+  const buttons = [
+    { id: "btn-search", mode: "search" },
+    { id: "tab-active", mode: "active" },
+    { id: "tab-ended", mode: "ended" },
+    { id: "tab-mine", mode: "mine" },
+  ];
 
-  let currentTab = "active";
-  let items = [];
-  let countdownTimer = null;
-
-  function setActiveTab(tab, clickedBtn) {
-    currentTab = tab;
-
-    const filterButtons = [elBtnSearch, elBtnActive, elBtnEnded, elBtnMine].filter(
-      Boolean
-    );
-    filterButtons.forEach((btn) => btn.classList.remove("active"));
-    if (clickedBtn) clickedBtn.classList.add("active");
+  function setActiveButton(activeId) {
+    buttons.forEach(({ id }) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (id === activeId) {
+        btn.classList.remove("ghost");
+        btn.classList.add("primary");
+      } else {
+        btn.classList.remove("primary");
+        btn.classList.add("ghost");
+      }
+    });
   }
 
-  // ---- helpers for images + time ----
-
-  function getImageUrl(item) {
-    // Try multiple possible JSON fields, then fallback to default
-    return (
-      item.coverImageUrl ||
-      item.cover_image_url ||
-      item.imageUrl ||
-      item.image_url ||
-      "../assets/img/no-image.png"
-    );
+  function formatMoney(value) {
+    if (value == null || isNaN(value)) return "$0.00";
+    return `$${Number(value).toFixed(2)}`;
   }
 
-  function renderTable() {
-    elTableBody.innerHTML = "";
+  function timeDiffLabel(endTimeIso) {
+    if (!endTimeIso) return "—";
+    const end = new Date(endTimeIso);
+    const now = new Date();
+    const diffMs = end - now;
+
+    if (isNaN(end.getTime())) return "—";
+    if (diffMs <= 0) return "Ended";
+
+    const totalSec = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+
+    const hh = hours.toString();
+    const mm = minutes.toString().padStart(2, "0");
+    const ss = seconds.toString().padStart(2, "0");
+
+    return `${hh}h ${mm}m ${ss}s`;
+  }
+
+  function renderItems(items) {
+    tbody.innerHTML = "";
+
+    if (!Array.isArray(items) || items.length === 0) {
+      msg.textContent = "No items found for this filter.";
+      return;
+    }
+
+    msg.textContent = "";
 
     items.forEach((item) => {
       const tr = document.createElement("tr");
 
-      // image col
-      const imgTd = document.createElement("td");
-      imgTd.className = "aa-col-image";
+      const imageTd = document.createElement("td");
+      imageTd.className = "aa-col-image";
       const img = document.createElement("img");
       img.className = "aa-table-thumb";
-      img.src = getImageUrl(item);
       img.alt = item.title || "Item image";
-      imgTd.appendChild(img);
-      tr.appendChild(imgTd);
 
-      // title
-      const tdTitle = document.createElement("td");
-      tdTitle.textContent = item.title || "(Untitled)";
-      tr.appendChild(tdTitle);
+      const url = (item.coverImageUrl || item.imageUrl || "").trim();
+      img.src = url || "../assets/img/placeholder.png";
+      img.onerror = () => {
+        img.src = "../assets/img/placeholder.png";
+      };
+      imageTd.appendChild(img);
 
-      // current price
-      const tdPrice = document.createElement("td");
-      const price = item.currentPrice ?? item.current_price ?? 0;
-      tdPrice.textContent = AA.formatMoney(price);
-      tr.appendChild(tdPrice);
+      const titleTd = document.createElement("td");
+      titleTd.textContent = item.title || "(untitled)";
 
-      // type
-      const tdType = document.createElement("td");
-      tdType.textContent = item.auctionType || item.auction_type || "FORWARD";
-      tr.appendChild(tdType);
+      const priceTd = document.createElement("td");
+      priceTd.textContent = formatMoney(item.currentPrice);
 
-      // status
-      const tdStatus = document.createElement("td");
-      tdStatus.textContent = (item.status || "ACTIVE").toUpperCase();
-      tr.appendChild(tdStatus);
+      const typeTd = document.createElement("td");
+      typeTd.textContent = item.auctionType || item.type || "";
 
-      // ends / remaining
-      const tdEnds = document.createElement("td");
-      const endTime = item.endTime || item.end_time || item.endsAt;
-      tdEnds.dataset.endTime = endTime || "";
-      if (!endTime) {
-        tdEnds.textContent = "—";
-      } else {
-        const txt = AA.timeRemaining(endTime);
-        tdEnds.textContent = txt === "Ended" ? "Ended" : txt;
-        if (txt === "Ended") {
-          tdEnds.classList.add("aa-time-danger");
-          tdStatus.textContent = "ENDED";
-          tdStatus.classList.add("aa-time-danger");
-        }
+      const statusTd = document.createElement("td");
+      statusTd.textContent = item.status || "";
+
+      const endsTd = document.createElement("td");
+      const label = timeDiffLabel(item.endTime || item.end_time);
+      endsTd.textContent = label;
+      if (label === "Ended") {
+        endsTd.classList.add("aa-time-danger");
       }
-      tr.appendChild(tdEnds);
 
-      // action
-      const tdAction = document.createElement("td");
-      tdAction.style.textAlign = "right";
-      const btn = document.createElement("button");
-      btn.className = "aa-btn secondary";
-      btn.textContent = "View";
-      btn.addEventListener("click", () => {
-        window.location.href = `item.html?id=${encodeURIComponent(
-          item.itemId ?? item.id
-        )}`;
+      const viewTd = document.createElement("td");
+      viewTd.style.textAlign = "right";
+      const viewBtn = document.createElement("button");
+      viewBtn.className = "aa-btn secondary";
+      viewBtn.textContent = "View";
+      viewBtn.addEventListener("click", () => {
+        if (!item.itemId && !item.id) return;
+        const id = item.itemId || item.id;
+        window.location.href = `item.html?id=${encodeURIComponent(id)}`;
       });
-      tdAction.appendChild(btn);
-      tr.appendChild(tdAction);
+      viewTd.appendChild(viewBtn);
 
-      elTableBody.appendChild(tr);
+      tr.appendChild(imageTd);
+      tr.appendChild(titleTd);
+      tr.appendChild(priceTd);
+      tr.appendChild(typeTd);
+      tr.appendChild(statusTd);
+      tr.appendChild(endsTd);
+      tr.appendChild(viewTd);
+
+      tbody.appendChild(tr);
     });
   }
 
-  function startCountdown() {
-    if (countdownTimer) clearInterval(countdownTimer);
+  async function fetchItems(mode) {
+    let url;
 
-    countdownTimer = setInterval(() => {
-      const rows = elTableBody.querySelectorAll("tr");
-      rows.forEach((tr) => {
-        const tdStatus = tr.children[4];
-        const tdEnds = tr.children[5];
-        const endIso = tdEnds.dataset.endTime;
-        if (!endIso) return;
-
-        const text = AA.timeRemaining(endIso);
-        tdEnds.textContent = text === "Ended" ? "Ended" : text;
-        tdEnds.classList.remove("aa-time-danger", "aa-time-warning");
-
-        const diffMs = new Date(endIso).getTime() - Date.now();
-        const mins = diffMs / 60000;
-
-        if (mins <= 0) {
-          tdEnds.classList.add("aa-time-danger");
-          tdStatus.textContent = "ENDED";
-          tdStatus.classList.add("aa-time-danger");
-        } else if (mins <= 5) {
-          tdEnds.classList.add("aa-time-danger");
-        } else if (mins <= 10) {
-          tdEnds.classList.add("aa-time-warning");
-        }
-      });
-    }, 1000);
-  }
-
-  // ---- API loaders (back to /api/items/...) ----
-
-  async function loadActive(clickedBtn) {
-    try {
-      const data = await AA.api("/api/items/active");
-      items = data || [];
-      renderTable();
-      startCountdown();
-      setActiveTab("active", clickedBtn || elBtnActive);
-    } catch (err) {
-      console.error(err);
-      AA.showToast("Failed to load active items.", "error");
-    }
-  }
-
-  async function loadEnded(clickedBtn) {
-    try {
-      const data = await AA.api("/api/items/ended");
-      items = data || [];
-      renderTable();
-      startCountdown();
-      setActiveTab("ended", clickedBtn || elBtnEnded);
-    } catch (err) {
-      console.error(err);
-      AA.showToast("Failed to load ended items.", "error");
-    }
-  }
-
-  async function loadMine(clickedBtn) {
-    try {
-      const all = await AA.api("/api/items");
-      items = (all || []).filter(
-        (it) => (it.sellerId ?? it.seller_id) === user.userId
-      );
-      renderTable();
-      startCountdown();
-      setActiveTab("mine", clickedBtn || elBtnMine);
-    } catch (err) {
-      console.error(err);
-      AA.showToast("Failed to load your listings.", "error");
-    }
-  }
-
-  async function doSearch(clickedBtn) {
-    const query = (elSearchInput?.value || "").trim();
-    try {
-      const path = query
-        ? `/api/items/search?q=${encodeURIComponent(query)}`
-        : "/api/items/active";
-
-      const data = await AA.api(path);
-      items = data || [];
-      renderTable();
-      startCountdown();
-      setActiveTab("search", clickedBtn || elBtnSearch);
-    } catch (err) {
-      console.error(err);
-      AA.showToast("Search failed.", "error");
-    }
-  }
-
-  // ---- wire up events ----
-
-  elBtnSearch &&
-    elBtnSearch.addEventListener("click", (e) => {
-      e.preventDefault();
-      doSearch(e.currentTarget);
-    });
-
-  elBtnActive &&
-    elBtnActive.addEventListener("click", (e) => {
-      e.preventDefault();
-      loadActive(e.currentTarget);
-    });
-
-  elBtnEnded &&
-    elBtnEnded.addEventListener("click", (e) => {
-      e.preventDefault();
-      loadEnded(e.currentTarget);
-    });
-
-  elBtnMine &&
-    elBtnMine.addEventListener("click", (e) => {
-      e.preventDefault();
-      loadMine(e.currentTarget);
-    });
-
-  elSearchInput &&
-    elSearchInput.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        doSearch(elBtnSearch || null);
+    switch (mode) {
+      case "active":
+        url = "/api/items/active";
+        break;
+      case "ended":
+        url = "/api/items/ended";
+        break;
+      case "mine":
+        url = "/api/items/mine";
+        break;
+      case "search":
+      default: {
+        const term = (searchInput?.value || "").trim();
+        // If search is empty, default to active
+        url = term
+          ? `/api/items/search?keyword=${encodeURIComponent(term)}`
+          : "/api/items/active";
+        break;
       }
-    });
+    }
 
-  // initial load – same as “Active” tab
-  loadActive(elBtnActive || null);
+    try {
+      const data = await AA.api.get(url);
+      renderItems(data || []);
+    } catch (err) {
+      console.error("Failed to load items", err);
+      tbody.innerHTML = "";
+      msg.textContent = "Error loading items from the server.";
+    }
+  }
+
+  // Wire up buttons safely
+  btnSearch?.addEventListener("click", () => {
+    setActiveButton("btn-search");
+    fetchItems("search");
+  });
+
+  tabActive?.addEventListener("click", () => {
+    setActiveButton("tab-active");
+    fetchItems("active");
+  });
+
+  tabEnded?.addEventListener("click", () => {
+    setActiveButton("tab-ended");
+    fetchItems("ended");
+  });
+
+  tabMine?.addEventListener("click", () => {
+    setActiveButton("tab-mine");
+    fetchItems("mine");
+  });
+
+  // Enter to search
+  searchInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setActiveButton("btn-search");
+      fetchItems("search");
+    }
+  });
+
+  // Initial load – show active items
+  setActiveButton("tab-active");
+  fetchItems("active");
 });
