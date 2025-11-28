@@ -30,21 +30,25 @@
         <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
         <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
 
-        <p><strong>Shipping (regular):</strong>
+        <p>
+          <strong>Shipping (regular):</strong>
           <span id="pay-ship-regular"></span>
         </p>
 
-        <label class="aa-checkbox">
-          <input type="checkbox" id="pay-expedited" />
-          <span id="pay-expedited-label">Expedited shipping (+…)</span>
-        </label>
+        <!-- Expedited shipping toggle -->
+        <div class="aa-radio">
+          <input type="checkbox" id="pay-ship-exp-check" />
+          <label for="pay-ship-exp-check" id="pay-ship-exp-text">
+            Expedited shipping (+$0 – not configured)
+          </label>
+        </div>
 
         <p class="aa-summary-row">
           <span>Total (item + shipping):</span>
           <span id="pay-total"></span>
         </p>
 
-        <p id="pay-shipping-time" class="aa-muted small"></p>
+        <p id="pay-ship-note" class="aa-muted small"></p>
       </div>
 
       <!-- Right: address & card form (UC5) -->
@@ -61,7 +65,13 @@
         <form id="pay-form" class="aa-form">
           <label>
             Card number
-            <input type="text" id="card-number" maxlength="19" inputmode="numeric" required />
+            <input
+              type="text"
+              id="card-number"
+              maxlength="19"
+              inputmode="numeric"
+              required
+            />
           </label>
           <label>
             Name on card
@@ -70,11 +80,23 @@
           <div class="aa-grid-2">
             <label>
               Expiry (MM/YY)
-              <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required />
+              <input
+                type="text"
+                id="card-expiry"
+                placeholder="MM/YY"
+                maxlength="5"
+                required
+              />
             </label>
             <label>
               CVV
-              <input type="password" id="card-cvv" maxlength="4" inputmode="numeric" required />
+              <input
+                type="password"
+                id="card-cvv"
+                maxlength="4"
+                inputmode="numeric"
+                required
+              />
             </label>
           </div>
 
