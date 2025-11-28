@@ -1,3 +1,4 @@
+:root {
   --bg: #0f172a;
   --bg-card: #111827;
   --border: #1f2937;
@@ -37,6 +38,8 @@ a:hover {
 .hidden {
   display: none !important;
 }
+
+/* ---------------- Header / Nav ---------------- */
 
 .aa-header {
   display: flex;
@@ -79,6 +82,8 @@ a:hover {
   font-size: 0.9rem;
 }
 
+/* ---------------- Layout ---------------- */
+
 .aa-main {
   max-width: 1100px;
   margin: 1.5rem auto;
@@ -94,6 +99,9 @@ a:hover {
   .aa-two-column {
     grid-template-columns: 1.2fr 1fr;
   }
+}
+
+/* Cards */
 
 .aa-card {
   background: rgba(15, 23, 42, 0.92);
@@ -108,10 +116,16 @@ a:hover {
   margin-top: 2rem;
 }
 
+/* ---------------- Hero ---------------- */
+
 .aa-hero {
   text-align: left;
   padding: 2rem 1.5rem;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(15, 23, 42, 0.95));
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.15),
+    rgba(15, 23, 42, 0.95)
+  );
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -128,6 +142,8 @@ a:hover {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+
+/* ---------------- Buttons ---------------- */
 
 .aa-btn {
   display: inline-flex;
@@ -167,6 +183,8 @@ a:hover {
   cursor: not-allowed;
 }
 
+/* ---------------- Forms ---------------- */
+
 .aa-form {
   display: flex;
   flex-direction: column;
@@ -180,6 +198,14 @@ a:hover {
 
 .aa-form-row > * {
   flex: 1;
+}
+
+/* inline form (browse filters, bid form, etc.) */
+.aa-form-inline {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
 }
 
 label {
@@ -208,6 +234,15 @@ select:focus {
   outline: 1px solid var(--accent);
 }
 
+.aa-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+/* ---------------- Tables (Browse) ---------------- */
+
 .aa-table {
   width: 100%;
   border-collapse: collapse;
@@ -229,6 +264,8 @@ select:focus {
   text-align: right;
 }
 
+/* image column + thumbnail */
+
 .aa-col-image {
   width: 72px;
 }
@@ -240,6 +277,8 @@ select:focus {
   object-fit: cover;
   display: block;
 }
+
+/* ---------------- Featured cards grid ---------------- */
 
 .aa-grid {
   display: grid;
@@ -255,29 +294,7 @@ select:focus {
   background: rgba(15, 23, 42, 0.95);
 }
 
-.aa-time-warning {
-  color: #f97316; /* orange */
-}
-
-.aa-time-danger {
-  color: var(--danger); /* red */
-}
- 
-.aa-muted {
-  color: var(--text-muted);
-}
-
-.small {
-  font-size: 0.8rem;
-}
-
-.aa-footer {
-  border-top: 1px solid var(--border);
-  padding: 0.75rem 1.5rem;
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
+/* optional image at top of small cards */
 
 .aa-card-image {
   width: 100%;
@@ -288,6 +305,8 @@ select:focus {
   max-height: 150px;
 }
 
+/* ---------------- Text helpers ---------------- */
+
 .aa-muted {
   color: var(--text-muted);
 }
@@ -295,6 +314,8 @@ select:focus {
 .small {
   font-size: 0.8rem;
 }
+
+/* ---------------- Footer ---------------- */
 
 .aa-footer {
   border-top: 1px solid var(--border);
@@ -304,7 +325,8 @@ select:focus {
   color: var(--text-muted);
 }
 
-/* Shared banner image that can sit above listing tables/cards */
+/* ---------------- Shared listing banner (if used) ---------------- */
+
 .aa-listing-banner {
   display: block;
   max-width: 260px;
@@ -314,7 +336,8 @@ select:focus {
   box-shadow: var(--shadow);
 }
 
-/* Time remaining colour thresholds */
+/* ---------------- Time remaining colours ---------------- */
+
 .aa-time-warning {
   color: #f97316; /* orange for <= 10 minutes */
 }
@@ -322,6 +345,8 @@ select:focus {
 .aa-time-danger {
   color: var(--danger); /* red for <= 5 minutes */
 }
+
+/* ---------------- Item page layout ---------------- */
 
 .aa-item-layout {
   display: grid;
@@ -341,6 +366,8 @@ select:focus {
   border: 1px solid var(--border);
 }
 
+/* bid list */
+
 .aa-list {
   list-style: none;
   padding-left: 0;
@@ -358,12 +385,7 @@ select:focus {
   margin-top: 0.75rem;
 }
 
-.aa-radio {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-}
+/* seller controls */
 
 .aa-pay-summary {
   margin-bottom: 1rem;
@@ -375,6 +397,13 @@ select:focus {
   border-top: 1px dashed var(--border);
   padding-top: 0.75rem;
 }
+
+/* simple card body helper (used on ended-section) */
+.aa-card-body {
+  margin-top: 0.75rem;
+}
+
+/* ---------------- Toast ---------------- */
 
 #aa-toast {
   position: fixed;
@@ -390,6 +419,10 @@ select:focus {
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 50;
+}
+
+#aa-toast.show {
+  opacity: 1;
 }
 
 .aa-toast-success {
