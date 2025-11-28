@@ -9,14 +9,19 @@
 <body>
 
   <header class="aa-header">
-    <div class="aa-logo">Aurora Auctions</div>
-    <nav class="aa-nav">
-      <a href="browse.html">Browse</a>
-      <a href="sell.html">Sell</a>
-      <a href="checkout.html">Checkout</a>
-      <button id="nav-logout" class="aa-link-button">Logout</button>
-    </nav>
-  </header>
+  <div class="aa-logo">
+    <!-- Clickable logo to go back to home -->
+    <a href="../index.html">Aurora Auctions</a>
+  </div>
+  <nav class="aa-nav">
+    <a href="../index.html">Home</a>
+    <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell</a>
+    <a href="checkout.html">Checkout</a>
+    <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
+    <button id="nav-logout" class="aa-link-button">Logout</button>
+  </nav>
+</header>
 
 <main class="aa-main">
   <section class="aa-card aa-card-wide">
