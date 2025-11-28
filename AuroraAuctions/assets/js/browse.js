@@ -1,228 +1,220 @@
 // assets/js/browse.js
-
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
   if (!user) return;
 
   AA.initNav();
 
-  const tbody = document.getElementById("items-tbody");
-  const searchForm = document.getElementById("search-form");
-  const searchInput = document.getElementById("search-query");
+  const elSearchInput = document.getElementById("search-keyword");
+  const elBtnSearch = document.getElementById("tab-search");
+  const elBtnActive = document.getElementById("tab-active");
+  const elBtnEnded = document.getElementById("tab-ended");
+  const elBtnMine = document.getElementById("tab-mine");
+  const elTableBody = document.getElementById("items-tbody");
 
-  const btnActive = document.getElementById("btn-show-active");
-  const btnEnded = document.getElementById("btn-show-ended");
-  const btnMine = document.getElementById("btn-show-mine");
+  let currentTab = "active"; // 'search' | 'active' | 'ended' | 'mine'
+  let items = [];
+  let countdownTimer = null;
 
-  const filterButtons = [btnActive, btnEnded, btnMine];
-
-  function setFilterActive(activeBtn) {
-    filterButtons.forEach((btn) => {
-      if (!btn) return;
-      btn.classList.remove("primary");
-      btn.classList.add("ghost");
-    });
-    if (activeBtn) {
-      activeBtn.classList.remove("ghost");
-      activeBtn.classList.add("primary");
-    }
+  function setActiveTab(tab) {
+    currentTab = tab;
+    [elBtnSearch, elBtnActive, elBtnEnded, elBtnMine].forEach((btn) =>
+      btn && btn.classList.remove("active")
+    );
+    if (tab === "search" && elBtnSearch) elBtnSearch.classList.add("active");
+    if (tab === "active" && elBtnActive) elBtnActive.classList.add("active");
+    if (tab === "ended" && elBtnEnded) elBtnEnded.classList.add("active");
+    if (tab === "mine" && elBtnMine) elBtnMine.classList.add("active");
   }
 
-  function buildTimeCell(endIso) {
-    const td = document.createElement("td");
-    if (!endIso) {
-      td.textContent = "—";
-      return td;
-    }
+  function renderTable() {
+    elTableBody.innerHTML = "";
 
-    const endTs = new Date(endIso).getTime();
-    const now = Date.now();
-    const diff = endTs - now;
+    items.forEach((item) => {
+      const tr = document.createElement("tr");
 
-    if (diff <= 0) {
-      td.textContent = "Ended";
-      td.classList.add("aa-time-danger");
-      return td;
-    }
+      const imgTd = document.createElement("td");
+      imgTd.className = "aa-col-image";
+      const img = document.createElement("img");
+      img.className = "aa-table-thumb";
+      img.src = item.coverImageUrl || "../assets/img/no-image.png";
+      img.alt = item.title || "Item image";
+      imgTd.appendChild(img);
+      tr.appendChild(imgTd);
 
-    const totalSeconds = Math.floor(diff / 1000);
-    const mins = Math.floor(totalSeconds / 60);
-    const remaining = AA.timeRemaining(endIso);
+      const tdTitle = document.createElement("td");
+      tdTitle.textContent = item.title || "(Untitled)";
+      tr.appendChild(tdTitle);
 
-    td.textContent = remaining;
+      const tdPrice = document.createElement("td");
+      tdPrice.textContent = AA.formatMoney(item.currentPrice);
+      tr.appendChild(tdPrice);
 
-    if (mins <= 5) {
-      td.classList.add("aa-time-danger");
-    } else if (mins <= 10) {
-      td.classList.add("aa-time-warning");
-    }
+      const tdType = document.createElement("td");
+      tdType.textContent = item.auctionType || "FORWARD";
+      tr.appendChild(tdType);
 
-    return td;
-  }
+      const tdStatus = document.createElement("td");
+      const remainingText = AA.timeRemaining(item.endTime);
+      const ended = remainingText === "Ended";
+      tdStatus.textContent = ended ? "ENDED" : (item.status || "ACTIVE");
+      if (ended) tdStatus.classList.add("aa-time-danger");
+      tr.appendChild(tdStatus);
 
-  async function loadItems(mode) {
-    tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
-
-    try {
-      let allItems = await AA.api("/items");
-      if (!Array.isArray(allItems)) allItems = [];
-
-      let items = allItems;
-
-      if (mode === "active") {
-        items = allItems.filter((it) => {
-          const endIso = it.endTime || it.end_time;
-          const ended = endIso && AA.timeRemaining(endIso) === "Ended";
-          const status = (it.status || "ACTIVE").toUpperCase();
-          return status === "ACTIVE" && !ended;
-        });
-      } else if (mode === "ended") {
-        items = allItems.filter((it) => {
-          const endIso = it.endTime || it.end_time;
-          const ended = endIso && AA.timeRemaining(endIso) === "Ended";
-          const status = (it.status || "").toUpperCase();
-          return ended || status === "ENDED";
-        });
-      } else if (mode === "mine") {
-        items = allItems.filter((it) => {
-          const owner =
-            it.sellerId ??
-            it.ownerId ??
-            it.owner_id ??
-            it.seller_id ??
-            null;
-          return owner != null && String(owner) === String(user.userId);
-        });
-      } else if (mode && typeof mode === "object" && mode.q) {
-        const q = mode.q.toLowerCase();
-        items = allItems.filter((it) => {
-          const haystack =
-            (it.title || "") +
-            " " +
-            (it.description || "") +
-            " " +
-            (it.keywords || "");
-          return haystack.toLowerCase().includes(q);
-        });
+      const tdEnds = document.createElement("td");
+      tdEnds.dataset.endTime = item.endTime || "";
+      tdEnds.textContent =
+        !item.endTime
+          ? "—"
+          : (remainingText === "Ended"
+              ? "Ended"
+              : remainingText);
+      if (remainingText === "Ended") {
+        tdEnds.classList.add("aa-time-danger");
       }
+      tr.appendChild(tdEnds);
 
-      if (!items.length) {
-        tbody.innerHTML =
-          "<tr><td colspan='7' class='aa-muted'>No items found.</td></tr>";
-        return;
-      }
-
-      tbody.innerHTML = "";
-
-      items.forEach((item) => {
-        const id = item.itemId ?? item.id ?? item.item_id;
-        if (!id) return;
-
-        const tr = document.createElement("tr");
-
-        // image cell
-        const imgTd = document.createElement("td");
-        imgTd.classList.add("aa-col-image");
-        const img = document.createElement("img");
-        img.className = "aa-table-thumb";
-        img.src =
-          item.imageUrl ||
-          item.coverImageUrl ||
-          item.image_url ||
-          "https://picsum.photos/seed/placeholder/200/200";
-        img.alt = item.title || "Listing image";
-        imgTd.appendChild(img);
-
-        const titleTd = document.createElement("td");
-        titleTd.textContent = item.title || `Item #${id}`;
-
-        const price =
-          item.currentPrice ??
-          item.curPrice ??
-          item.current_price ??
-          item.startingPrice ??
-          item.start_price ??
-          0;
-        const priceTd = document.createElement("td");
-        priceTd.textContent = AA.formatMoney(price);
-
-        const typeTd = document.createElement("td");
-        typeTd.textContent = item.auctionType || item.type || "";
-
-        // status: if time says ended, override to ENDED
-        const endIso = item.endTime || item.end_time;
-        const ended = endIso && AA.timeRemaining(endIso) === "Ended";
-        const statusText = ended
-          ? "ENDED"
-          : item.status || "ACTIVE";
-        const statusTd = document.createElement("td");
-        statusTd.textContent = statusText;
-
-        const timeTd = buildTimeCell(endIso);
-
-        const actionTd = document.createElement("td");
-        actionTd.innerHTML = `
-          <a class="aa-btn secondary"
-             href="item.html?id=${encodeURIComponent(id)}">
-            View
-          </a>
-        `;
-
-        tr.appendChild(imgTd);
-        tr.appendChild(titleTd);
-        tr.appendChild(priceTd);
-        tr.appendChild(typeTd);
-        tr.appendChild(statusTd);
-        tr.appendChild(timeTd);
-        tr.appendChild(actionTd);
-
-        tbody.appendChild(tr);
+      const tdAction = document.createElement("td");
+      tdAction.style.textAlign = "right";
+      const btn = document.createElement("button");
+      btn.className = "aa-btn secondary";
+      btn.textContent = "View";
+      btn.addEventListener("click", () => {
+        window.location.href = `item.html?id=${encodeURIComponent(
+          item.itemId
+        )}`;
       });
+      tdAction.appendChild(btn);
+      tr.appendChild(tdAction);
+
+      elTableBody.appendChild(tr);
+    });
+  }
+
+  function startCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      const rows = elTableBody.querySelectorAll("tr");
+      rows.forEach((tr) => {
+        const tdEnds = tr.children[5]; // ends / remaining col
+        const tdStatus = tr.children[4]; // status col
+        const endIso = tdEnds.dataset.endTime;
+        if (!endIso) return;
+        const text = AA.timeRemaining(endIso);
+        const ended = text === "Ended";
+
+        tdEnds.textContent = ended ? "Ended" : text;
+        tdEnds.classList.remove("aa-time-danger", "aa-time-warning");
+
+        const diffMs = new Date(endIso).getTime() - Date.now();
+        const mins = diffMs / 60000;
+
+        if (mins <= 0) {
+          tdEnds.classList.add("aa-time-danger");
+          tdStatus.textContent = "ENDED";
+          tdStatus.classList.add("aa-time-danger");
+        } else if (mins <= 5) {
+          tdEnds.classList.add("aa-time-danger");
+        } else if (mins <= 10) {
+          tdEnds.classList.add("aa-time-warning");
+        }
+      });
+    }, 1000);
+  }
+
+  async function loadActive() {
+    setActiveTab("active");
+    try {
+      items = await AA.api("/items/active");
+      renderTable();
+      startCountdown();
     } catch (err) {
-      console.error("Failed to load items:", err);
-      tbody.innerHTML =
-        "<tr><td colspan='7' class='aa-muted'>Failed to load items.</td></tr>";
+      console.error(err);
+      AA.showToast("Failed to load active items.", "error");
     }
   }
 
-  // Search form
-  if (searchForm && searchInput) {
-    searchForm.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const q = searchInput.value.trim();
-      if (!q) {
-        setFilterActive(btnActive);
-        loadItems("active");
-      } else {
-        setFilterActive(null); // clear highlight when doing text search
-        loadItems({ q });
+  async function loadEnded() {
+    setActiveTab("ended");
+    try {
+      items = await AA.api("/items/ended");
+      renderTable();
+      startCountdown();
+    } catch (err) {
+      console.error(err);
+      AA.showToast("Failed to load ended items.", "error");
+    }
+  }
+
+  async function loadMine() {
+    setActiveTab("mine");
+    try {
+      const all = await AA.api("/items");
+      items = all.filter((it) => it.sellerId === user.userId);
+      renderTable();
+      startCountdown();
+    } catch (err) {
+      console.error(err);
+      AA.showToast("Failed to load your listings.", "error");
+    }
+  }
+
+  async function doSearch() {
+    const query = elSearchInput.value.trim();
+    setActiveTab("search");
+    try {
+      const path = query
+        ? `/items/search?q=${encodeURIComponent(query)}`
+        : "/items/active";
+      items = await AA.api(path);
+      renderTable();
+      startCountdown();
+    } catch (err) {
+      console.error(err);
+      AA.showToast("Search failed.", "error");
+    }
+  }
+
+  // ---------- Wire up UI ----------
+
+  if (elBtnSearch) {
+    elBtnSearch.addEventListener("click", (e) => {
+      e.preventDefault();
+      doSearch();
+    });
+  }
+
+  if (elBtnActive) {
+    elBtnActive.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadActive();
+    });
+  }
+
+  if (elBtnEnded) {
+    elBtnEnded.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadEnded();
+    });
+  }
+
+  if (elBtnMine) {
+    elBtnMine.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadMine();
+    });
+  }
+
+  // Enter to search
+  if (elSearchInput) {
+    elSearchInput.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        doSearch();
       }
     });
   }
 
-  // Filter buttons
-  if (btnActive) {
-    btnActive.addEventListener("click", () => {
-      setFilterActive(btnActive);
-      loadItems("active");
-    });
-  }
-
-  if (btnEnded) {
-    btnEnded.addEventListener("click", () => {
-      setFilterActive(btnEnded);
-      loadItems("ended");
-    });
-  }
-
-  if (btnMine) {
-    btnMine.addEventListener("click", () => {
-      setFilterActive(btnMine);
-      loadItems("mine");
-    });
-  }
-
-  // Initial load
-  setFilterActive(btnActive);
-  loadItems("active");
+  // Initial load: active tab
+  loadActive();
 });
