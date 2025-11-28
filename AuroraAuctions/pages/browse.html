@@ -7,44 +7,31 @@
   <link rel="stylesheet" href="../assets/css/styles.css" />
 </head>
 <body>
-<header class="aa-header">
-  <div class="aa-logo">Aurora Auctions</div>
-  <nav class="aa-nav">
-    <a href="../index.html">Home</a>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell</a>
-    <a href="checkout.html">Checkout</a>
-    <button id="nav-logout" class="aa-link-button">Logout</button>
-  </nav>
-</header>
+  <header class="aa-header">
+    <div class="aa-logo">Aurora Auctions</div>
+    <nav class="aa-nav">
+      <a href="browse.html">Browse</a>
+      <a href="sell.html">Sell</a>
+      <a href="checkout.html">Checkout</a>
+      <button id="nav-logout" class="aa-link-button">Logout</button>
+    </nav>
+  </header>
 
 <main class="aa-main">
   <section class="aa-card">
     <h2>Browse Catalogue</h2>
 
-    <!-- Optional banner above listings -->
-    <img
-      src="../assets/img/aurora-featured.png"
-      alt="Aurora Auctions listings"
-      class="aa-listing-banner"
-    />
-
-    <div class="aa-hero-actions">
-      <input
-        id="browse-search"
-        type="text"
-        placeholder="Search by keyword"
-      />
-      <button id="btn-search" class="aa-btn primary">Search</button>
-      <button id="tab-active" class="aa-btn ghost">Active</button>
-      <button id="tab-ended" class="aa-btn ghost">Ended</button>
-      <button id="tab-mine" class="aa-btn ghost">My Listings</button>
-    </div>
+    <form id="search-form" class="aa-form-inline">
+      <input type="text" id="search-query" placeholder="Search by keyword" />
+      <button type="submit" class="aa-btn secondary">Search</button>
+      <button type="button" id="btn-show-active" class="aa-btn ghost">Active</button>
+      <button type="button" id="btn-show-ended" class="aa-btn ghost">Ended</button>
+      <button type="button" id="btn-show-mine" class="aa-btn ghost">My Listings</button>
+    </form>
 
     <table class="aa-table">
       <thead>
       <tr>
-        <th class="aa-col-image">Image</th>
         <th>Item</th>
         <th>Current Price</th>
         <th>Type</th>
@@ -53,12 +40,8 @@
         <th></th>
       </tr>
       </thead>
-      <tbody id="browse-body">
-      <!-- rows injected by browse.js -->
-      </tbody>
+      <tbody id="items-tbody"></tbody>
     </table>
-
-    <p id="browse-message" class="aa-muted small"></p>
   </section>
 </main>
 

@@ -1,293 +1,119 @@
 // assets/js/browse.js
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Require login (UC1)
   const user = AA.requireLogin();
   if (!user) return;
 
   AA.initNav();
 
-  // --- DOM references -------------------------------------------------------
-  const tbody = document.getElementById("browse-body");
-  const msg = document.getElementById("browse-message");
-  const searchInput = document.getElementById("browse-search");
+  const tbody = document.getElementById("items-tbody");
+  const searchForm = document.getElementById("search-form");
+  const btnActive = document.getElementById("btn-show-active");
+  const btnEnded = document.getElementById("btn-show-ended");
+  const btnMine = document.getElementById("btn-show-mine");
 
-  const btnSearch = document.getElementById("btn-search");
-  const tabActive = document.getElementById("tab-active");
-  const tabEnded = document.getElementById("tab-ended");
-  const tabMine = document.getElementById("tab-mine");
+  async function loadItems(mode) {
+    // mode can be:
+    //  - "active" | "ended" | "mine"
+    //  - { q: "keyword" } for search
+    //  - undefined for "all"
 
-  if (!tbody) {
-    console.error("Browse: #browse-body not found");
-    return;
-  }
-
-  // --- Utility helpers ------------------------------------------------------
-
-  const filterButtons = [
-    { id: "btn-search", mode: "search" },
-    { id: "tab-active", mode: "active" },
-    { id: "tab-ended", mode: "ended" },
-    { id: "tab-mine", mode: "mine" },
-  ];
-
-  function setActiveButton(activeId) {
-    filterButtons.forEach(({ id }) => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      if (id === activeId) {
-        btn.classList.remove("ghost");
-        btn.classList.add("primary");
-      } else {
-        btn.classList.remove("primary");
-        btn.classList.add("ghost");
-      }
-    });
-  }
-
-  function safeMoney(v) {
-    if (typeof AA.formatMoney === "function") {
-      return AA.formatMoney(v);
-    }
-    return `$${Number(v || 0).toFixed(2)}`;
-  }
-
-  // Compute label + colour class for Ends / Remaining
-  function computeTimeMeta(endIso, rawStatus) {
-    const status = (rawStatus || "").toUpperCase();
-    const info = { label: "—", className: "" };
-
-    if (!endIso) {
-      if (status === "ENDED") {
-        info.label = "Ended";
-        info.className = "aa-time-danger";
-      }
-      return info;
-    }
-
-    const end = AA.parseAuctionTime
-      ? AA.parseAuctionTime(endIso)
-      : new Date(endIso);
-
-    if (!end || isNaN(end.getTime())) return info;
-
-    const now = new Date();
-    const diffMs = end - now;
-
-    if (diffMs <= 0 || status === "ENDED") {
-      info.label = "Ended";
-      info.className = "aa-time-danger";
-      return info;
-    }
-
-    const minutesLeft = diffMs / 60000;
-
-    // Prefer the shared helper for consistency with item page
-    if (typeof AA.timeRemaining === "function") {
-      info.label = AA.timeRemaining(endIso);
-    } else {
-      const totalSec = Math.floor(diffMs / 1000);
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      info.label = `${h}h ${m.toString().padStart(2, "0")}m ${s
-        .toString()
-        .padStart(2, "0")}s`;
-    }
-
-    if (minutesLeft <= 5) info.className = "aa-time-danger";
-    else if (minutesLeft <= 10) info.className = "aa-time-warning";
-
-    return info;
-  }
-
-  // Render a list of items into the table body
-  function renderItems(items) {
-    tbody.innerHTML = "";
-
-    if (!Array.isArray(items) || items.length === 0) {
-      msg.textContent = "No items found for this filter.";
-      return;
-    }
-
-    msg.textContent = "";
-
-    items.forEach((item) => {
-      const tr = document.createElement("tr");
-
-      // Image column
-      const imageTd = document.createElement("td");
-      imageTd.className = "aa-col-image";
-      const img = document.createElement("img");
-      img.className = "aa-table-thumb";
-      img.alt = item.title || "Item image";
-
-      const imgUrl = (
-        item.imageUrl ||
-        item.coverImageUrl ||
-        item.cover_image_url ||
-        ""
-      ).trim();
-
-      img.src = imgUrl || "../assets/img/placeholder.png";
-      img.onerror = () => {
-        img.src = "../assets/img/placeholder.png";
-      };
-
-      imageTd.appendChild(img);
-      tr.appendChild(imageTd);
-
-      // Title
-      const titleTd = document.createElement("td");
-      titleTd.textContent = item.title || "(untitled item)";
-      tr.appendChild(titleTd);
-
-      // Price
-      const priceTd = document.createElement("td");
-      const price =
-        item.currentPrice ??
-        item.current_price ??
-        item.startingPrice ??
-        item.starting_price ??
-        0;
-      priceTd.textContent = safeMoney(price);
-      tr.appendChild(priceTd);
-
-      // Type
-      const typeTd = document.createElement("td");
-      typeTd.textContent =
-        item.auctionType || item.auction_type || "FORWARD";
-      tr.appendChild(typeTd);
-
-      // Status
-      const statusTd = document.createElement("td");
-      statusTd.textContent = item.status || "";
-      tr.appendChild(statusTd);
-
-      // Ends / Remaining
-      const endsTd = document.createElement("td");
-      const endIso = item.endTime || item.end_time;
-      const meta = computeTimeMeta(endIso, item.status);
-
-      endsTd.textContent = meta.label;
-      if (meta.className) endsTd.classList.add(meta.className);
-
-      // Store for live countdown updates
-      if (endIso) {
-        endsTd.dataset.endTime = endIso;
-        endsTd.dataset.status = item.status || "";
-      }
-
-      tr.appendChild(endsTd);
-
-      // View button
-      const viewTd = document.createElement("td");
-      viewTd.style.textAlign = "right";
-
-      const viewBtn = document.createElement("button");
-      viewBtn.className = "aa-btn secondary";
-      viewBtn.textContent = "View";
-
-      const id = item.itemId ?? item.id ?? item.item_id;
-      if (id == null) {
-        viewBtn.disabled = true;
-      } else {
-        viewBtn.addEventListener("click", () => {
-          window.location.href = `item.html?id=${encodeURIComponent(id)}`;
-        });
-      }
-
-      viewTd.appendChild(viewBtn);
-      tr.appendChild(viewTd);
-
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Periodically update countdown cells without re-fetching (no flicker)
-  function tickCountdowns() {
-    const cells = tbody.querySelectorAll("td[data-end-time]");
-    cells.forEach((td) => {
-      const endIso = td.dataset.endTime;
-      const status = td.dataset.status || "";
-      const meta = computeTimeMeta(endIso, status);
-
-      td.textContent = meta.label;
-      td.classList.remove("aa-time-warning", "aa-time-danger");
-      if (meta.className) td.classList.add(meta.className);
-    });
-  }
-
-  setInterval(tickCountdowns, 1000);
-
-  // --- Fetch helpers --------------------------------------------------------
-
-  async function fetchItems(mode) {
-    let path;
-
-    switch (mode) {
-      case "active":
-        path = "/items/active";
-        break;
-      case "ended":
-        path = "/items/ended";
-        break;
-      case "mine":
-        // My Listings: filter by the current user's ID
-        path = `/items?ownerId=${encodeURIComponent(user.userId)}`;
-        break;
-      case "search":
-      default: {
-        const term = (searchInput?.value || "").trim();
-        path = term
-          ? `/items/search?keyword=${encodeURIComponent(term)}`
-          : "/items/active";
-        break;
-      }
-    }
+    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
 
     try {
-      const data = await AA.api(path); // AA.api already prefixes with /api
-      renderItems(data || []);
-    } catch (err) {
-      console.error("Failed to load items", err);
+      let items;
+
+      if (typeof mode === "string") {
+        if (mode === "active") {
+          items = await AA.api("/items/active");
+        } else if (mode === "ended") {
+          items = await AA.api("/items/ended");
+        } else if (mode === "mine") {
+          items = await AA.api(
+            `/items?ownerId=${encodeURIComponent(user.userId)}`
+          );
+        } else {
+          items = await AA.api("/items");
+        }
+      } else if (mode && typeof mode === "object" && mode.q) {
+        items = await AA.api(
+          `/items/search?q=${encodeURIComponent(mode.q)}`
+        );
+      } else {
+        items = await AA.api("/items");
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        tbody.innerHTML =
+          "<tr><td colspan='6' class='aa-muted small'>No items found.</td></tr>";
+        return;
+      }
+
       tbody.innerHTML = "";
-      msg.textContent = "Error loading items from the server.";
+
+      items.forEach((item) => {
+        // Try several possible property names from the backend response
+        const id = item.itemId ?? item.id ?? item.item_id;
+
+        // If we still don't have an id, skip this item (it's malformed)
+        if (!id) {
+          console.warn("Item has no id field:", item);
+          return;
+        }
+
+        const tr = document.createElement("tr");
+        const price = item.currentPrice || item.startingPrice;
+
+        tr.innerHTML = `
+          <td>${item.title}</td>
+          <td>${AA.formatMoney(price)}</td>
+          <td>${item.auctionType}</td>
+          <td>${item.status}</td>
+          <td>${AA.timeRemaining(item.endTime)}</td>
+          <td>
+            <a class="aa-btn secondary"
+               href="item.html?id=${encodeURIComponent(id)}">
+              View
+            </a>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error("Browse loadItems error:", err);
+      tbody.innerHTML =
+        "<tr><td colspan='6' class='aa-muted small'>Failed to load items.</td></tr>";
+      if (AA.showToast) {
+        AA.showToast(
+          `Failed to load items: ${err.message || "Unknown error"}`,
+          "error"
+        );
+      }
     }
   }
 
-  // --- Event wiring ---------------------------------------------------------
+  // Search form (UC2.1)
+  if (searchForm) {
+    searchForm.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const q = document.getElementById("search-query").value.trim();
+      if (q) loadItems({ q });
+      else loadItems("active");
+    });
+  }
 
-  btnSearch?.addEventListener("click", () => {
-    setActiveButton("btn-search");
-    fetchItems("search");
-  });
+  // Filter buttons (UC2.2 / UC2.3 / UC2.4)
+  if (btnActive) {
+    btnActive.addEventListener("click", () => loadItems("active"));
+  }
+  if (btnEnded) {
+    btnEnded.addEventListener("click", () => loadItems("ended"));
+  }
+  if (btnMine) {
+    btnMine.addEventListener("click", () => loadItems("mine"));
+  }
 
-  tabActive?.addEventListener("click", () => {
-    setActiveButton("tab-active");
-    fetchItems("active");
-  });
-
-  tabEnded?.addEventListener("click", () => {
-    setActiveButton("tab-ended");
-    fetchItems("ended");
-  });
-
-  tabMine?.addEventListener("click", () => {
-    setActiveButton("tab-mine");
-    fetchItems("mine");
-  });
-
-  // Hitting Enter in the search box = search
-  searchInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setActiveButton("btn-search");
-      fetchItems("search");
-    }
-  });
-
-  // Initial load: active auctions (UC2)
-  setActiveButton("tab-active");
-  fetchItems("active");
+  // Initial load: show active auctions
+  loadItems("active");
 });

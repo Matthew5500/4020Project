@@ -20,10 +20,9 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background: radial-gradient(circle at top, #1e293b 0, #020617 60%);
-  color: var(--text);
   font-family: var(--font-main);
+  background: radial-gradient(circle at top, #1f2937 0, #020617 55%, #000 100%);
+  color: var(--text);
 }
 
 a {
@@ -38,8 +37,6 @@ a:hover {
 .hidden {
   display: none !important;
 }
-
-/* ---------------- Header / Nav ---------------- */
 
 .aa-header {
   display: flex;
@@ -82,8 +79,6 @@ a:hover {
   font-size: 0.9rem;
 }
 
-/* ---------------- Layout ---------------- */
-
 .aa-main {
   max-width: 1100px;
   margin: 1.5rem auto;
@@ -101,31 +96,22 @@ a:hover {
   }
 }
 
-/* Cards */
-
 .aa-card {
   background: rgba(15, 23, 42, 0.92);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   padding: 1.25rem 1.5rem;
-  margin: 1.5rem auto;
 }
 
 .aa-section {
   margin-top: 2rem;
 }
 
-/* ---------------- Hero ---------------- */
-
 .aa-hero {
   text-align: left;
   padding: 2rem 1.5rem;
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.15),
-    rgba(15, 23, 42, 0.95)
-  );
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(15, 23, 42, 0.95));
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -142,8 +128,6 @@ a:hover {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-
-/* ---------------- Buttons ---------------- */
 
 .aa-btn {
   display: inline-flex;
@@ -183,8 +167,6 @@ a:hover {
   cursor: not-allowed;
 }
 
-/* ---------------- Forms ---------------- */
-
 .aa-form {
   display: flex;
   flex-direction: column;
@@ -198,14 +180,6 @@ a:hover {
 
 .aa-form-row > * {
   flex: 1;
-}
-
-/* inline form (browse filters, bid form, etc.) */
-.aa-form-inline {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
 }
 
 label {
@@ -234,15 +208,6 @@ select:focus {
   outline: 1px solid var(--accent);
 }
 
-.aa-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-}
-
-/* ---------------- Tables (Browse) ---------------- */
-
 .aa-table {
   width: 100%;
   border-collapse: collapse;
@@ -264,22 +229,6 @@ select:focus {
   text-align: right;
 }
 
-/* image column + thumbnail */
-
-.aa-col-image {
-  width: 72px;
-}
-
-.aa-table-thumb {
-  width: 56px;
-  height: 56px;
-  border-radius: 6px;
-  object-fit: cover;
-  display: block;
-}
-
-/* ---------------- Featured cards grid ---------------- */
-
 .aa-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -294,19 +243,6 @@ select:focus {
   background: rgba(15, 23, 42, 0.95);
 }
 
-/* optional image at top of small cards */
-
-.aa-card-image {
-  width: 100%;
-  display: block;
-  border-radius: var(--radius);
-  margin-bottom: 0.75rem;
-  object-fit: cover;
-  max-height: 150px;
-}
-
-/* ---------------- Text helpers ---------------- */
-
 .aa-muted {
   color: var(--text-muted);
 }
@@ -315,8 +251,6 @@ select:focus {
   font-size: 0.8rem;
 }
 
-/* ---------------- Footer ---------------- */
-
 .aa-footer {
   border-top: 1px solid var(--border);
   padding: 0.75rem 1.5rem;
@@ -324,29 +258,6 @@ select:focus {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
-
-/* ---------------- Shared listing banner (if used) ---------------- */
-
-.aa-listing-banner {
-  display: block;
-  max-width: 260px;
-  width: 100%;
-  margin: 0 auto 1rem;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-/* ---------------- Time remaining colours ---------------- */
-
-.aa-time-warning {
-  color: #f97316; /* orange for <= 10 minutes */
-}
-
-.aa-time-danger {
-  color: var(--danger); /* red for <= 5 minutes */
-}
-
-/* ---------------- Item page layout ---------------- */
 
 .aa-item-layout {
   display: grid;
@@ -366,8 +277,6 @@ select:focus {
   border: 1px solid var(--border);
 }
 
-/* bid list */
-
 .aa-list {
   list-style: none;
   padding-left: 0;
@@ -385,7 +294,12 @@ select:focus {
   margin-top: 0.75rem;
 }
 
-/* seller controls */
+.aa-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
 
 .aa-pay-summary {
   margin-bottom: 1rem;
@@ -397,13 +311,6 @@ select:focus {
   border-top: 1px dashed var(--border);
   padding-top: 0.75rem;
 }
-
-/* simple card body helper (used on ended-section) */
-.aa-card-body {
-  margin-top: 0.75rem;
-}
-
-/* ---------------- Toast ---------------- */
 
 #aa-toast {
   position: fixed;
@@ -421,10 +328,6 @@ select:focus {
   z-index: 50;
 }
 
-#aa-toast.show {
-  opacity: 1;
-}
-
 .aa-toast-success {
   border-color: var(--accent);
 }
@@ -435,37 +338,4 @@ select:focus {
 
 .aa-toast-info {
   border-color: var(--border);
-}
-
-/* Make the expedited-shipping checkbox row look consistent */
-.aa-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-}
-
-/* Slight extra vertical space between "CVV" label and its input */
-#card-cvv {
-  margin-top: 0.25rem;
-}
-
-.aa-shipping-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.aa-checkbox-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-}
-
-.aa-checkbox-inline input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
 }

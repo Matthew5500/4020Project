@@ -8,16 +8,15 @@
 </head>
 <body>
 
-<header class="aa-header">
-  <div class="aa-logo">Aurora Auctions</div>
-  <nav class="aa-nav">
-    <a href="../index.html">Home</a>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell</a>
-    <a href="checkout.html">Checkout</a>
-    <button id="nav-logout" class="aa-link-button">Logout</button>
-  </nav>
-</header>
+  <header class="aa-header">
+    <div class="aa-logo">Aurora Auctions</div>
+    <nav class="aa-nav">
+      <a href="browse.html">Browse</a>
+      <a href="sell.html">Sell</a>
+      <a href="checkout.html">Checkout</a>
+      <button id="nav-logout" class="aa-link-button">Logout</button>
+    </nav>
+  </header>
 
 <main class="aa-main">
   <section class="aa-card aa-card-wide">
@@ -30,26 +29,21 @@
         <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
         <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
 
-        <p>
-          <strong>Shipping (regular):</strong>
+        <p><strong>Shipping (regular):</strong>
           <span id="pay-ship-regular"></span>
         </p>
 
-        <p class="aa-shipping-row">
-          <strong>Expedited shipping:</strong>
-          <label class="aa-checkbox-inline" for="pay-ship-exp-check">
-            <input type="checkbox" id="pay-ship-exp-check" />
-            <span id="pay-ship-exp-label">(loading…)</span>
-          </label>
-        </p>
-
+        <label class="aa-checkbox">
+          <input type="checkbox" id="pay-expedited" />
+          <span id="pay-expedited-label">Expedited shipping (+…)</span>
+        </label>
 
         <p class="aa-summary-row">
           <span>Total (item + shipping):</span>
           <span id="pay-total"></span>
         </p>
 
-        <p id="pay-ship-note" class="aa-muted small"></p>
+        <p id="pay-shipping-time" class="aa-muted small"></p>
       </div>
 
       <!-- Right: address & card form (UC5) -->
@@ -66,13 +60,7 @@
         <form id="pay-form" class="aa-form">
           <label>
             Card number
-            <input
-              type="text"
-              id="card-number"
-              maxlength="19"
-              inputmode="numeric"
-              required
-            />
+            <input type="text" id="card-number" maxlength="19" inputmode="numeric" required />
           </label>
           <label>
             Name on card
@@ -81,23 +69,11 @@
           <div class="aa-grid-2">
             <label>
               Expiry (MM/YY)
-              <input
-                type="text"
-                id="card-expiry"
-                placeholder="MM/YY"
-                maxlength="5"
-                required
-              />
+              <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required />
             </label>
             <label>
               CVV
-              <input
-                type="password"
-                id="card-cvv"
-                maxlength="4"
-                inputmode="numeric"
-                required
-              />
+              <input type="password" id="card-cvv" maxlength="4" inputmode="numeric" required />
             </label>
           </div>
 
