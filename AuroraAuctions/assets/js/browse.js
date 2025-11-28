@@ -16,53 +16,91 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabMine = document.getElementById("tab-mine");
 
   const buttons = [
-    { id: "btn-search", mode: "search" },
-    { id: "tab-active", mode: "active" },
-    { id: "tab-ended", mode: "ended" },
-    { id: "tab-mine", mode: "mine" },
+    { id: "btn-search", el: btnSearch, mode: "search" },
+    { id: "tab-active", el: tabActive, mode: "active" },
+    { id: "tab-ended", el: tabEnded, mode: "ended" },
+    { id: "tab-mine", el: tabMine, mode: "mine" },
   ];
 
+  let refreshTimerId = null;
+
   function setActiveButton(activeId) {
-    buttons.forEach(({ id }) => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
+    buttons.forEach(({ id, el }) => {
+      if (!el) return;
       if (id === activeId) {
-        btn.classList.remove("ghost");
-        btn.classList.add("primary");
+        el.classList.remove("ghost");
+        el.classList.add("primary");
       } else {
-        btn.classList.remove("primary");
-        btn.classList.add("ghost");
+        el.classList.remove("primary");
+        el.classList.add("ghost");
       }
     });
   }
 
   function formatMoney(value) {
-    if (value == null || isNaN(value)) return "$0.00";
-    return `$${Number(value).toFixed(2)}`;
+    return AA.formatMoney(value);
   }
 
-  function timeDiffLabel(endTimeIso) {
-    if (!endTimeIso) return "—";
-    const end = new Date(endTimeIso);
+  /**
+   * Return { label, className } where:
+   *  - label: human friendly "1h 3m", "4m 10s", "Ended", etc.
+   *  - className: "", "aa-time-warn", or "aa-time-danger"
+   */
+  function computeTimeMeta(item) {
+    const rawEnd = item.endTime || item.end_time;
+    const status = (item.status || "").toUpperCase();
+
+    const end = AA.parseAuctionTime(rawEnd);
+    if (!end) {
+      return { label: "—", className: "" };
+    }
+
     const now = new Date();
-    const diffMs = end - now;
+    const diffMs = end.getTime() - now.getTime();
 
-    if (isNaN(end.getTime())) return "—";
-    if (diffMs <= 0) return "Ended";
+    if (Number.isNaN(end.getTime()) || diffMs <= 0 || status === "ENDED") {
+      return { label: "Ended", className: "aa-time-danger" };
+    }
 
-    const totalSec = Math.floor(diffMs / 1000);
-    const hours = Math.floor(totalSec / 3600);
-    const minutes = Math.floor((totalSec % 3600) / 60);
-    const seconds = totalSec % 60;
+    const label = AA.timeRemaining(rawEnd);
 
-    const hh = hours.toString();
-    const mm = minutes.toString().padStart(2, "0");
-    const ss = seconds.toString().padStart(2, "0");
+    const minutes = diffMs / 60000;
+    let className = "";
+    if (minutes <= 5) {
+      className = "aa-time-danger";
+    } else if (minutes <= 10) {
+      className = "aa-time-warn";
+    }
 
-    return `${hh}h ${mm}m ${ss}s`;
+    return { label, className };
   }
 
+  /**
+   * Decide which image URL to use for a row.
+   * Supports different backend field names.
+   */
+  function safeImageUrl(item) {
+    const url =
+      (item.coverImageUrl ||
+        item.cover_image_url ||
+        item.imageUrl ||
+        item.image_url ||
+        "").trim();
+
+    if (!url) return "../assets/img/placeholder.png";
+    return url;
+  }
+
+  /**
+   * Render table rows and start the countdown timer.
+   */
   function renderItems(items) {
+    // stop any previous countdown
+    if (refreshTimerId) {
+      clearInterval(refreshTimerId);
+      refreshTimerId = null;
+    }
+
     tbody.innerHTML = "";
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -75,46 +113,64 @@ document.addEventListener("DOMContentLoaded", () => {
     items.forEach((item) => {
       const tr = document.createElement("tr");
 
+      // --- Image column ---
       const imageTd = document.createElement("td");
       imageTd.className = "aa-col-image";
       const img = document.createElement("img");
       img.className = "aa-table-thumb";
       img.alt = item.title || "Item image";
-
-      const url = (item.coverImageUrl || item.imageUrl || "").trim();
-      img.src = url || "../assets/img/placeholder.png";
+      img.src = safeImageUrl(item);
       img.onerror = () => {
         img.src = "../assets/img/placeholder.png";
       };
       imageTd.appendChild(img);
 
+      // --- Title ---
       const titleTd = document.createElement("td");
       titleTd.textContent = item.title || "(untitled)";
 
+      // --- Current price (fallback to startingPrice if needed) ---
       const priceTd = document.createElement("td");
-      priceTd.textContent = formatMoney(item.currentPrice);
+      const price =
+        item.currentPrice ??
+        item.current_price ??
+        item.startingPrice ??
+        item.starting_price ??
+        0;
+      priceTd.textContent = formatMoney(price);
 
+      // --- Type ---
       const typeTd = document.createElement("td");
       typeTd.textContent = item.auctionType || item.type || "";
 
+      // --- Status ---
       const statusTd = document.createElement("td");
       statusTd.textContent = item.status || "";
 
+      // --- Ends / Remaining (this will tick down) ---
       const endsTd = document.createElement("td");
-      const label = timeDiffLabel(item.endTime || item.end_time);
+      endsTd.classList.add("aa-col-ends");
+
+      const { label, className } = computeTimeMeta(item);
       endsTd.textContent = label;
-      if (label === "Ended") {
-        endsTd.classList.add("aa-time-danger");
+      if (className) {
+        endsTd.classList.add(className);
       }
 
+      // store for countdown updates
+      tr.dataset.endTime = item.endTime || item.end_time || "";
+      tr.dataset.status = item.status || "";
+      tr.dataset.itemId = item.itemId || item.id;
+
+      // --- View button ---
       const viewTd = document.createElement("td");
       viewTd.style.textAlign = "right";
       const viewBtn = document.createElement("button");
       viewBtn.className = "aa-btn secondary";
       viewBtn.textContent = "View";
       viewBtn.addEventListener("click", () => {
-        if (!item.itemId && !item.id) return;
         const id = item.itemId || item.id;
+        if (!id) return;
         window.location.href = `item.html?id=${encodeURIComponent(id)}`;
       });
       viewTd.appendChild(viewBtn);
@@ -129,34 +185,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
       tbody.appendChild(tr);
     });
+
+    // live countdown for Ends/Remaining column
+    refreshTimerId = setInterval(() => {
+      const rows = tbody.querySelectorAll("tr");
+      rows.forEach((row) => {
+        const endIso = row.dataset.endTime;
+        const status = row.dataset.status;
+        const cell = row.querySelector(".aa-col-ends");
+        if (!endIso || !cell) return;
+
+        const { label, className } = computeTimeMeta({
+          endTime: endIso,
+          status,
+        });
+
+        cell.textContent = label;
+        cell.classList.remove("aa-time-warn", "aa-time-danger");
+        if (className) cell.classList.add(className);
+      });
+    }, 1000);
   }
 
+  /**
+   * Fetch items from the server according to the selected mode.
+   * Uses AA.api (NOT AA.api.get).
+   */
   async function fetchItems(mode) {
-    let url;
+    let path = "/items";
 
-    switch (mode) {
-      case "active":
-        url = "/api/items/active";
-        break;
-      case "ended":
-        url = "/api/items/ended";
-        break;
-      case "mine":
-        url = "/api/items/mine";
-        break;
-      case "search":
-      default: {
-        const term = (searchInput?.value || "").trim();
-        // If search is empty, default to active
-        url = term
-          ? `/api/items/search?keyword=${encodeURIComponent(term)}`
-          : "/api/items/active";
-        break;
+    if (mode === "active") {
+      path = "/items/active";
+    } else if (mode === "ended") {
+      path = "/items/ended";
+    } else if (mode === "mine") {
+      // My Listings = filter by seller / owner id
+      path = `/items?ownerId=${encodeURIComponent(user.userId)}`;
+    } else if (mode === "search") {
+      const q = (searchInput?.value || "").trim();
+      if (q) {
+        path = `/items/search?q=${encodeURIComponent(q)}`;
+      } else {
+        path = "/items";
       }
     }
 
+    tbody.innerHTML =
+      "<tr><td colspan='7' class='aa-muted'>Loading items…</td></tr>";
+    msg.textContent = "";
+
     try {
-      const data = await AA.api.get(url);
+      const data = await AA.api(path); // <-- fixed from AA.api.get
       renderItems(data || []);
     } catch (err) {
       console.error("Failed to load items", err);
@@ -165,7 +244,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Wire up buttons safely
+  // --- Wire up buttons / search ---
+
   btnSearch?.addEventListener("click", () => {
     setActiveButton("btn-search");
     fetchItems("search");
@@ -186,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchItems("mine");
   });
 
-  // Enter to search
+  // Press Enter in the search box to search
   searchInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -195,7 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Initial load – show active items
+  // Initial load – active auctions
   setActiveButton("tab-active");
   fetchItems("active");
 });
