@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // DOM refs
+  // left card
   const elTitle = document.getElementById("item-title");
   const elDesc = document.getElementById("item-description");
   const elImage = document.getElementById("item-image");
@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const elEnds = document.getElementById("item-ends");
   const elSeller = document.getElementById("item-seller");
 
+  // bidding card
   const elBidInput = document.getElementById("bid-amount");
   const elPlaceBid = document.getElementById("btn-place-bid");
   const elGetDutchPrice = document.getElementById("btn-get-price");
@@ -32,74 +33,78 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentItem = null;
   let countdownTimer = null;
 
-  // ---------- Helpers ----------
+  function getImageUrl(item) {
+    return (
+      item.coverImageUrl ||
+      item.cover_image_url ||
+      item.imageUrl ||
+      item.image_url ||
+      "../assets/img/no-image.png"
+    );
+  }
 
   function renderItem() {
     if (!currentItem) return;
 
-    elTitle.textContent = currentItem.title ?? "Item";
-    elDesc.textContent = currentItem.description ?? "";
+    const price = currentItem.currentPrice ?? currentItem.current_price ?? 0;
+    const auctionType =
+      currentItem.auctionType || currentItem.auction_type || "FORWARD";
+    const status = (currentItem.status || "ACTIVE").toUpperCase();
+    const endTime =
+      currentItem.endTime || currentItem.end_time || currentItem.endsAt || null;
 
-    const imgSrc =
-      currentItem.coverImageUrl ||
-      "../assets/img/no-image.png";
-    elImage.src = imgSrc;
+    elTitle.textContent = currentItem.title || "Loading item...";
+    elDesc.textContent = currentItem.description || "";
+    elImage.src = getImageUrl(currentItem);
     elImage.alt = currentItem.title || "Item image";
+    elCurrentPrice.textContent = AA.formatMoney(price);
+    elAuctionType.textContent = auctionType;
+    elStatus.textContent = status;
 
-    elCurrentPrice.textContent = AA.formatMoney(currentItem.currentPrice);
-    elAuctionType.textContent = currentItem.auctionType || "FORWARD";
-
-    const endedText = AA.timeRemaining(currentItem.endTime);
-    const ended = endedText === "Ended";
-
-    elEnds.textContent = endedText === "Ended"
-      ? `${AA.formatDateTime(currentItem.endTime)} (Ended)`
-      : `${AA.formatDateTime(currentItem.endTime)} (${endedText})`;
-
-    if (ended) {
-      elEnds.classList.add("aa-time-danger");
-      elStatus.textContent = "ENDED";
+    if (!endTime) {
+      elEnds.textContent = "—";
     } else {
-      elEnds.classList.remove("aa-time-danger", "aa-time-warning");
-      // give a little colour hint as time approaches
-      const millis = new Date(currentItem.endTime).getTime() - Date.now();
-      const mins = millis / 60000;
-      if (mins <= 5) {
-        elEnds.classList.add("aa-time-danger");
-      } else if (mins <= 10) {
-        elEnds.classList.add("aa-time-warning");
-      }
-      elStatus.textContent = currentItem.status || "ACTIVE";
+      const remaining = AA.timeRemaining(endTime);
+      elEnds.textContent =
+        remaining === "Ended"
+          ? `${AA.formatDateTime(endTime)} (Ended)`
+          : `${AA.formatDateTime(endTime)} (${remaining})`;
     }
 
-    elSeller.textContent =
-      currentItem.sellerId != null ? `Seller #${currentItem.sellerId}` : "Unknown";
+    const sellerId = currentItem.sellerId ?? currentItem.seller_id;
+    elSeller.textContent = sellerId ? `Seller: Seller #${sellerId}` : "Seller: —";
 
-    // Enable / disable bidding UI depending on type + status
-    const isForward = (currentItem.auctionType || "").toUpperCase() === "FORWARD";
-    const isDutch = (currentItem.auctionType || "").toUpperCase() === "DUTCH";
-    const isEnded = ended || (currentItem.status || "").toUpperCase() === "ENDED";
+    const isEnded = AA.timeRemaining(endTime) === "Ended" || status === "ENDED";
+    const isForward = auctionType.toUpperCase() === "FORWARD";
+    const isDutch = auctionType.toUpperCase() === "DUTCH";
 
-    // Forward auction: allow manual bids, no Dutch actions
-    elBidInput.disabled = !isForward || isEnded;
-    elPlaceBid.disabled = !isForward || isEnded;
-    elGetDutchPrice.disabled = !isDutch || isEnded;
-    elBuyNow.disabled = isEnded;
+    // enable / disable
+    if (elBidInput) elBidInput.disabled = !isForward || isEnded;
+    if (elPlaceBid) elPlaceBid.disabled = !isForward || isEnded;
+    if (elGetDutchPrice) elGetDutchPrice.disabled = !isDutch || isEnded;
+    if (elBuyNow) elBuyNow.disabled = isEnded;
 
-    // Clear bid history status line
-    elBidHistoryStatus.textContent = "";
+    if (elBidHistoryStatus) elBidHistoryStatus.textContent = "";
   }
 
   function storeCheckoutAndGo(item) {
     if (!item) return;
 
+    const price = item.currentPrice ?? item.current_price ?? 0;
+
+    const baseShip =
+      item.shipCostStd ?? item.ship_cost_std ?? item.shippingRegular ?? 0;
+    const expShip =
+      item.shipCostExp ?? item.ship_cost_exp ?? item.shippingExpedited ?? 0;
+    const shipDays = item.shipDays ?? item.ship_days ?? null;
+
     const checkout = {
-      itemId: item.itemId,
+      itemId: item.itemId ?? item.id,
       title: item.title,
-      winningPrice: item.currentPrice,
-      baseShipping: item.shipCostStd ?? 0,
-      expShipping: item.shipCostExp ?? 0,
-      shippingDays: item.shipDays ?? null,
+      winningPrice: price,
+      baseShipping: baseShip,
+      expShipping: expShip,
+      shippingDays: shipDays,
       expeditedSelected: false,
     };
 
@@ -107,24 +112,58 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "pay.html";
   }
 
+  async function loadBids() {
+    if (!elBidHistory || !elBidHistoryStatus) return;
+
+    try {
+      const bids = await AA.api(`/api/items/${encodeURIComponent(itemId)}/bids`);
+      elBidHistory.innerHTML = "";
+
+      if (!bids || bids.length === 0) {
+        elBidHistoryStatus.textContent = "No bids yet.";
+        return;
+      }
+
+      bids.forEach((b) => {
+        const li = document.createElement("li");
+        const bidder = b.bidderId ?? b.bidder_id ?? "—";
+        const amount = b.amount ?? 0;
+        const when = b.bidTime ?? b.bid_time;
+        li.textContent = `User #${bidder} bid ${AA.formatMoney(
+          amount
+        )} on ${AA.formatDateTime(when)}`;
+        elBidHistory.appendChild(li);
+      });
+    } catch (err) {
+      console.error(err);
+      elBidHistoryStatus.textContent = "Unable to load bid history.";
+    }
+  }
+
   async function loadItemAndBids() {
     try {
-      const item = await AA.api(`/items/${encodeURIComponent(itemId)}`);
+      const item = await AA.api(`/api/items/${encodeURIComponent(itemId)}`);
       currentItem = item;
       renderItem();
 
+      // countdown
       if (countdownTimer) clearInterval(countdownTimer);
       countdownTimer = setInterval(() => {
         if (!currentItem) return;
-        const text = AA.timeRemaining(currentItem.endTime);
-        const ended = text === "Ended";
-        elEnds.textContent = ended
-          ? `${AA.formatDateTime(currentItem.endTime)} (Ended)`
-          : `${AA.formatDateTime(currentItem.endTime)} (${text})`;
+        const endTime =
+          currentItem.endTime || currentItem.end_time || currentItem.endsAt;
+        if (!endTime) return;
+
+        const text = AA.timeRemaining(endTime);
+        elEnds.textContent =
+          text === "Ended"
+            ? `${AA.formatDateTime(endTime)} (Ended)`
+            : `${AA.formatDateTime(endTime)} (${text})`;
 
         elEnds.classList.remove("aa-time-danger", "aa-time-warning");
-        const millis = new Date(currentItem.endTime).getTime() - Date.now();
-        const mins = millis / 60000;
+        const diffMs = new Date(endTime).getTime() - Date.now();
+        const mins = diffMs / 60000;
+
         if (mins <= 0) {
           elEnds.classList.add("aa-time-danger");
           elStatus.textContent = "ENDED";
@@ -138,37 +177,13 @@ document.addEventListener("DOMContentLoaded", () => {
       await loadBids();
     } catch (err) {
       console.error(err);
-      AA.showToast("Failed to load item.", "error");
+      AA.showToast("Failed to load item details.", "error");
     }
   }
 
-  async function loadBids() {
-    try {
-      const bids = await AA.api(`/items/${encodeURIComponent(itemId)}/bids`);
-      elBidHistory.innerHTML = "";
+  // ---- event handlers ----
 
-      if (!bids || bids.length === 0) {
-        elBidHistoryStatus.textContent = "No bids yet.";
-        return;
-      }
-
-      bids.forEach((b) => {
-        const li = document.createElement("li");
-        li.className = "aa-list-item";
-        li.textContent =
-          `User #${b.bidderId} bid ${AA.formatMoney(b.amount)} ` +
-          `on ${AA.formatDateTime(b.bidTime)}`;
-        elBidHistory.appendChild(li);
-      });
-    } catch (err) {
-      console.error(err);
-      elBidHistoryStatus.textContent = "Unable to load bid history.";
-    }
-  }
-
-  // ---------- Event handlers ----------
-
-  if (elPlaceBid) {
+  elPlaceBid &&
     elPlaceBid.addEventListener("click", async () => {
       if (!currentItem) return;
 
@@ -180,13 +195,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      const currentPrice = currentItem.currentPrice ?? currentItem.current_price;
+
+      if (currentPrice != null && amount <= currentPrice) {
+        AA.showToast(
+          "Bid must be strictly greater than the current price.",
+          "error"
+        );
+        return;
+      }
+
       try {
         const payload = {
           bidderId: user.userId,
           amount,
         };
 
-        await AA.api(`/items/${encodeURIComponent(itemId)}/bids`, {
+        await AA.api(`/api/items/${encodeURIComponent(itemId)}/bids`, {
           method: "POST",
           body: JSON.stringify(payload),
         });
@@ -202,20 +227,20 @@ document.addEventListener("DOMContentLoaded", () => {
         AA.showToast(err.message || "Bid failed.", "error");
       }
     });
-  }
 
-  if (elGetDutchPrice) {
+  elGetDutchPrice &&
     elGetDutchPrice.addEventListener("click", async () => {
       if (!currentItem) return;
 
       try {
         const data = await AA.api(
-          `/items/${encodeURIComponent(itemId)}/dutch/price`
+          `/api/items/${encodeURIComponent(itemId)}/dutch/price`
         );
         const price =
-          data && (data.currentPrice ?? data.price ?? data.amount);
+          data.currentPrice ?? data.price ?? data.amount ?? null;
+
         if (price == null) {
-          AA.showToast("Could not determine current price.", "error");
+          AA.showToast("Could not determine current Dutch price.", "error");
           return;
         }
 
@@ -230,18 +255,18 @@ document.addEventListener("DOMContentLoaded", () => {
         AA.showToast(err.message || "Failed to get price.", "error");
       }
     });
-  }
 
-  if (elBuyNow) {
+  elBuyNow &&
     elBuyNow.addEventListener("click", async () => {
       if (!currentItem) return;
 
-      const type = (currentItem.auctionType || "").toUpperCase();
+      const auctionType =
+        currentItem.auctionType || currentItem.auction_type || "FORWARD";
+
       try {
-        if (type === "DUTCH") {
-          // Accept the current Dutch price
+        if (auctionType.toUpperCase() === "DUTCH") {
           const updated = await AA.api(
-            `/items/${encodeURIComponent(itemId)}/dutch/accept`,
+            `/api/items/${encodeURIComponent(itemId)}/dutch/accept`,
             {
               method: "POST",
               body: JSON.stringify({ buyerId: user.userId }),
@@ -250,18 +275,15 @@ document.addEventListener("DOMContentLoaded", () => {
           currentItem = updated || currentItem;
           renderItem();
           AA.showToast("Offer accepted. Proceed to payment.", "success");
-          storeCheckoutAndGo(currentItem);
-        } else {
-          // Forward auction: just proceed with current price
-          storeCheckoutAndGo(currentItem);
         }
+
+        storeCheckoutAndGo(currentItem);
       } catch (err) {
         console.error(err);
         AA.showToast(err.message || "Unable to complete purchase.", "error");
       }
     });
-  }
 
-  // Initial load
+  // initial load
   loadItemAndBids();
 });
