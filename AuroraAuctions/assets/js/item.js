@@ -6,26 +6,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   AA.initNav();
 
-  // Flexible query param handling (?id=, ?itemId=, ?item_id=)
-  const rawId =
-    AA.getQueryParam("id") ||
-    AA.getQueryParam("itemId") ||
-    AA.getQueryParam("item_id");
-
-  const itemId = rawId && rawId !== "undefined" ? rawId : null;
-
+  const itemId = AA.getQueryParam("id");
   if (!itemId) {
-    if (AA.showToast) {
-      AA.showToast(
-        "Missing or invalid item id. Redirecting to Browse.",
-        "error"
-      );
-    }
+    AA.showToast("No item id provided.", "error");
     window.location.href = "browse.html";
     return;
   }
 
-  // DOM references
   const elTitle = document.getElementById("item-title");
   const elDesc = document.getElementById("item-description");
   const elImg = document.getElementById("item-image");
@@ -35,14 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const elEnd = document.getElementById("item-end");
   const elSeller = document.getElementById("item-seller");
 
-  const forwardSection = document.getElementById("forward-section");
-  const dutchSection = document.getElementById("dutch-section");
-
-  const winnerInfo = document.getElementById("winner-info");
-
-  const payBtn = document.getElementById("btn-pay-now");
-  const expeditedCheckbox = document.getElementById("expedited-checkbox");
-  const expeditedLabel = document.getElementById("expedited-label");
+  const forwardSection = document.getElementById("forward-bidding");
+  const dutchSection = document.getElementById("dutch-bidding");
+  const endedSection = document.getElementById("ended-info");
 
   const bidForm = document.getElementById("bid-form");
   const bidAmountInput = document.getElementById("bid-amount");
@@ -68,109 +50,293 @@ document.addEventListener("DOMContentLoaded", () => {
     return fallback;
   }
 
+  // ---- Load item details (used by UC3 & UC4) ----
   async function loadItem() {
     try {
-      const item = await AA.api(`/items/${encodeURIComponent(itemId)}`);
+      const item = await AA.api(
+        `/items/${encodeURIComponent(itemId)}`
+      );
+
       currentItem = item;
 
-      const sellerId = firstField(
-        item,
-        ["sellerId", "ownerId", "owner_id", "seller_id"],
-        "?"
-      );
-
-      const shippingDays = firstField(
-        item,
-        [
-          "ship_days", // DB column
-          "shipDays", // typical entity name
-          "shippingDays",
-          "shipping_time_days",
-        ],
-        null
-      );
-
-      const imageUrl = firstField(
-        item,
-        ["imageUrl", "coverImageUrl", "cover_image_url", "image_url"],
-        "https://picsum.photos/seed/placeholder/600/400"
-      );
-
-      elTitle.textContent = item.title;
-      elDesc.textContent = item.description || "No description.";
-      elImg.src = imageUrl;
-
-      elPrice.textContent = AA.formatMoney(
-        item.currentPrice || item.startingPrice || item.price
-      );
-      elType.textContent = item.auctionType;
-      elStatus.textContent = item.status;
-
-      const updateEndText = () => {
-        const base = AA.formatDateTime(item.endTime);
-        if (!base || base === "—") {
-          elEnd.textContent = base;
-          elEnd.classList.remove("aa-time-warning", "aa-time-danger");
-          return;
-        }
-
-        // If the auction is no longer active, just show the end date/time.
-        if (item.status !== "ACTIVE") {
-          elEnd.textContent = base;
-          elEnd.classList.remove("aa-time-warning", "aa-time-danger");
-          return;
-        }
-
-        const end = AA.parseAuctionTime
-          ? AA.parseAuctionTime(item.endTime)
-          : new Date(item.endTime);
-        if (!end || isNaN(end.getTime())) {
-          elEnd.textContent = base;
-          elEnd.classList.remove("aa-time-warning", "aa-time-danger");
-          return;
-        }
-
-        const now = new Date();
-        const diffMs = end.getTime() - now.getTime();
-        if (diffMs <= 0) {
-          elEnd.textContent = `${base} (Ended)`;
-          elEnd.classList.remove("aa-time-warning", "aa-time-danger");
-          return;
-        }
-
-        const totalSecs = Math.floor(diffMs / 1000);
-        const h = Math.floor(totalSecs / 3600);
-        const m = Math.floor((totalSecs % 3600) / 60);
-        const s = totalSecs % 60;
-        elEnd.textContent = `${base} (${h}h ${m}m ${s}s)`;
-
-        const minutesLeft = totalSecs / 60;
-        elEnd.classList.remove("aa-time-warning", "aa-time-danger");
-        if (minutesLeft <= 5) {
-          elEnd.classList.add("aa-time-danger");
-        } else if (minutesLeft <= 10) {
-          elEnd.classList.add("aa-time-warning");
-        }
-      };
-
-      updateEndText();
-      setInterval(updateEndText, 1000);
-
-      elSeller.textContent = `Seller #${sellerId}`;
-
-      // The rest of your existing bidding / Dutch / seller control logic remains unchanged
-      // ...
-      // (Assuming your original file had all the UC3.x logic here; keep it as-is.)
-
-    } catch (err) {
-      console.error("Load item error:", err);
-      if (AA.showToast) {
-        AA.showToast("Failed to load item.", err.message, "error");
+      if (elTitle) elTitle.textContent = item.title;
+      if (elDesc)
+        elDesc.textContent = item.description || "No description.";
+      if (elImg) {
+        elImg.src =
+          item.imageUrl ||
+          item.coverImageUrl ||
+          "https://picsum.photos/seed/placeholder/600/400";
       }
+
+      if (elPrice) {
+        elPrice.textContent = AA.formatMoney(
+          item.currentPrice || item.startingPrice || item.price
+        );
+      }
+
+      if (elType) elType.textContent = item.auctionType;
+
+      const rem = item.endTime ? AA.timeRemaining(item.endTime) : null;
+      const isEnded = rem === "Ended";
+
+      if (elStatus) {
+        elStatus.textContent = isEnded ? "ENDED" : item.status;
+      }
+
+      if (elEnd) {
+        elEnd.classList.remove("aa-time-warning", "aa-time-danger");
+
+        if (!item.endTime) {
+          elEnd.textContent = "—";
+        } else if (isEnded) {
+          elEnd.textContent = `${AA.formatDateTime(item.endTime)} (Ended)`;
+          elEnd.classList.add("aa-time-danger");
+        } else {
+          elEnd.textContent = `${AA.formatDateTime(item.endTime)} (${rem})`;
+          const endTs = new Date(item.endTime).getTime();
+          const diffMs = endTs - Date.now();
+          const minsLeft = Math.floor(diffMs / 1000 / 60);
+          if (minsLeft <= 5) {
+            elEnd.classList.add("aa-time-danger");
+          } else if (minsLeft <= 10) {
+            elEnd.classList.add("aa-time-warning");
+          }
+        }
+      }
+
+      if (elSeller) {
+        elSeller.textContent = `Seller: Seller #${
+          firstField(item, ["sellerId", "ownerId", "userId"], "?")
+        }`;
+      }
+
+      // reset sections
+      forwardSection?.classList.add("hidden");
+      dutchSection?.classList.add("hidden");
+      endedSection?.classList.add("hidden");
+
+      // Active auctions -> show correct bidding UI
+      if (item.status === "ACTIVE" && !isEnded) {
+        if (item.auctionType === "FORWARD") {
+          forwardSection?.classList.remove("hidden");
+          await loadBids();
+        } else if (item.auctionType === "DUTCH") {
+          dutchSection?.classList.remove("hidden");
+        }
+      } else {
+        endedSection?.classList.remove("hidden");
+      }
+
+      // Seller controls: only show to the seller
+      const sellerId = firstField(item, ["sellerId", "ownerId", "userId"]);
+      if (sellerControls) {
+        if (sellerId && String(sellerId) === String(user.userId)) {
+          sellerControls.classList.remove("hidden");
+        } else {
+          sellerControls.classList.add("hidden");
+        }
+      }
+
+      // Prepare checkout info (UC5)
+      const winningPrice =
+        item.currentPrice || item.finalPrice || item.startingPrice || 0;
+
+      const baseShipping =
+        firstField(item, ["shipCostStd", "ship_cost_std", "ship_cost_std_cad"]) ||
+        item.shipCost || item.shipping || 0;
+
+      const expShipping =
+        firstField(item, ["shipCostExp", "ship_cost_exp", "ship_cost_exp_cad"]) ||
+        0;
+
+      const shippingDays =
+        firstField(item, ["shipDays", "ship_days"]) || null;
+
+      currentItem._checkoutInfo = {
+        itemId,
+        title: item.title,
+        winningPrice,
+        baseShipping,
+        expShipping,
+        shippingDays,
+      };
+    } catch (err) {
+      console.error("Load item failed:", err);
+      AA.showToast("Failed to load item details.", "error");
     }
   }
 
-  // ... keep your existing bidding / Dutch auction / pay now logic here ...
+  // ---- Load bids (UC3.2 – forward auctions) ----
+  async function loadBids() {
+    if (!bidList) return;
+    try {
+      const bids = await AA.api(
+        `/items/${encodeURIComponent(itemId)}/bids`
+      );
+      bidList.innerHTML = "";
+      if (!bids.length) {
+        bidList.innerHTML =
+          "<li class='aa-muted small'>No bids yet. Be the first!</li>";
+        return;
+      }
+      bids.forEach((b) => {
+        const li = document.createElement("li");
 
+        const amt =
+          b.amount ??
+          b.bidAmount ??
+          b.bid_amount ??
+          b.value ??
+          0;
+
+        const bidder =
+          b.bidderId ??
+          b.userId ??
+          b.user_id ??
+          "?";
+
+        const when =
+          b.bidTime ??
+          b.createdAt ??
+          b.created_at ??
+          null;
+
+        li.textContent = `${AA.formatMoney(amt)} by user #${bidder}${
+          when ? " at " + AA.formatDateTime(when) : ""
+        }`;
+        bidList.appendChild(li);
+      });
+    } catch (err) {
+      console.error("Load bids failed:", err);
+      bidList.innerHTML =
+        "<li class='aa-muted small'>Failed to load bids.</li>";
+    }
+  }
+
+  // ---- Forward bidding submit (UC3.1) ----
+  if (bidForm && bidAmountInput) {
+    bidForm.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (bidMsg) bidMsg.textContent = "";
+
+      if (!currentItem) {
+        AA.showToast("Item not loaded yet.", "error");
+        return;
+      }
+
+      const raw = bidAmountInput.value.trim();
+      const amount = Number(raw);
+
+      if (!raw || Number.isNaN(amount) || amount <= 0) {
+        AA.showToast("Please enter a positive bid amount.", "error");
+        return;
+      }
+
+      try {
+        await AA.api(`/items/${encodeURIComponent(itemId)}/bids`, {
+          method: "POST",
+          body: {
+            bidderId: user.userId,
+            amount: amount,
+          },
+        });
+
+        AA.showToast("Bid placed successfully.", "success");
+        if (bidMsg) {
+          bidMsg.textContent = `You bid ${AA.formatMoney(
+            amount
+          )} as user #${user.userId}.`;
+        }
+        bidAmountInput.value = "";
+        await loadItem();
+        await loadBids();
+      } catch (err) {
+        console.error("Bid failed:", err);
+        if (bidMsg) {
+          bidMsg.textContent = err.message || "Bid failed.";
+        }
+        AA.showToast(
+          "Bid failed: " + (err.message || "Bad Request"),
+          "error"
+        );
+      }
+    });
+  }
+
+  // ---- Dutch auction buttons (UC3.2 / UC3.3) ----
+  if (btnDutchPrice && dutchPriceLabel) {
+    btnDutchPrice.addEventListener("click", async () => {
+      dutchMsg.textContent = "";
+      if (dutchPriceLabel) {
+        dutchPriceLabel.textContent = "Loading…";
+      }
+      try {
+        const data = await AA.api(
+          `/items/${encodeURIComponent(itemId)}/dutch/price`
+        );
+        dutchPriceLabel.textContent = AA.formatMoney(data.currentPrice);
+      } catch (err) {
+        console.error("Dutch price failed:", err);
+        dutchMsg.textContent = err.message || "Failed to load price.";
+        AA.showToast(
+          "Failed to load Dutch price: " + (err.message || "Bad Request"),
+          "error"
+        );
+      }
+    });
+  }
+
+  if (btnDutchAccept) {
+    btnDutchAccept.addEventListener("click", async () => {
+      dutchMsg.textContent = "";
+      try {
+        await AA.api(
+          `/items/${encodeURIComponent(itemId)}/dutch/accept`,
+          {
+            method: "POST",
+            body: { buyerId: user.userId },
+          }
+        );
+        AA.showToast(
+          "You accepted the current Dutch price. Auction will end.",
+          "success"
+        );
+        await loadItem();
+      } catch (err) {
+        console.error("Dutch accept failed:", err);
+        dutchMsg.textContent =
+          err.message || "Failed to accept price.";
+        AA.showToast(
+          "Failed to accept Dutch price: " + (err.message || "Bad Request"),
+          "error"
+        );
+      }
+    });
+  }
+
+  // ---- Seller: end auction manually ----
+  if (btnEndAuction) {
+    btnEndAuction.addEventListener("click", async () => {
+      sellerMsg.textContent = "";
+      try {
+        await AA.api(`/items/${encodeURIComponent(itemId)}/end`, {
+          method: "POST",
+        });
+        AA.showToast("Auction ended.", "success");
+        await loadItem();
+      } catch (err) {
+        console.error("End auction failed:", err);
+        sellerMsg.textContent =
+          err.message || "Failed to end auction.";
+        AA.showToast(
+          "Failed to end auction: " + (err.message || "Bad Request"),
+          "error"
+        );
+      }
+    });
+  }
+
+  // Initial load
   loadItem();
 });
