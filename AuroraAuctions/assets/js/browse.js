@@ -8,82 +8,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tbody = document.getElementById("items-tbody");
   const searchForm = document.getElementById("search-form");
-  const searchInput = document.getElementById("search-query");
   const btnActive = document.getElementById("btn-show-active");
   const btnEnded = document.getElementById("btn-show-ended");
   const btnMine = document.getElementById("btn-show-mine");
 
-  let countdownTimer = null;
+  const filterButtons = [btnActive, btnEnded, btnMine];
 
-  function clearCountdownTimer() {
-    if (countdownTimer) {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
-    }
-  }
-
-  function updateCountdownCells() {
-    const cells = tbody.querySelectorAll("td[data-end-time]");
-    const now = new Date();
-
-    cells.forEach((cell) => {
-      const iso = cell.getAttribute("data-end-time");
-      if (!iso) {
-        cell.textContent = "—";
-        cell.classList.remove("aa-time-warning", "aa-time-danger");
-        return;
-      }
-
-      const end = AA.parseAuctionTime
-        ? AA.parseAuctionTime(iso)
-        : new Date(iso);
-
-      if (!end || isNaN(end.getTime())) {
-        cell.textContent = "—";
-        cell.classList.remove("aa-time-warning", "aa-time-danger");
-        return;
-      }
-
-      const diffMs = end.getTime() - now.getTime();
-      if (diffMs <= 0) {
-        cell.textContent = "Ended";
-        cell.classList.remove("aa-time-warning", "aa-time-danger");
-        return;
-      }
-
-      const totalSecs = Math.floor(diffMs / 1000);
-      const h = Math.floor(totalSecs / 3600);
-      const m = Math.floor((totalSecs % 3600) / 60);
-      const s = totalSecs % 60;
-      cell.textContent = `${h}h ${m}m ${s}s`;
-
-      const minutesLeft = totalSecs / 60;
-      cell.classList.remove("aa-time-warning", "aa-time-danger");
-      if (minutesLeft <= 5) {
-        cell.classList.add("aa-time-danger");
-      } else if (minutesLeft <= 10) {
-        cell.classList.add("aa-time-warning");
-      }
+  function setFilterActive(activeBtn) {
+    filterButtons.forEach((btn) => {
+      if (!btn) return;
+      btn.classList.remove("primary");
+      btn.classList.add("ghost");
     });
-  }
-
-  function startCountdownTimer() {
-    clearCountdownTimer();
-    updateCountdownCells();
-    countdownTimer = setInterval(updateCountdownCells, 1000);
-  }
-
-  function firstField(obj, names, fallback = null) {
-    for (const n of names) {
-      if (obj[n] !== undefined && obj[n] !== null) return obj[n];
+    if (activeBtn) {
+      activeBtn.classList.remove("ghost");
+      activeBtn.classList.add("primary");
     }
-    return fallback;
+  }
+
+  function buildTimeCell(endIso) {
+    const td = document.createElement("td");
+    if (!endIso) {
+      td.textContent = "—";
+      return td;
+    }
+
+    const end = new Date(endIso).getTime();
+    const now = Date.now();
+    const diff = end - now;
+
+    if (diff <= 0) {
+      td.textContent = "Ended";
+      td.classList.add("aa-time-danger");
+      return td;
+    }
+
+    const sec = Math.floor(diff / 1000);
+    const mins = Math.floor(sec / 60);
+
+    const remText = AA.timeRemaining(endIso);
+    td.textContent = remText;
+
+    if (mins <= 5) {
+      td.classList.add("aa-time-danger");
+    } else if (mins <= 10) {
+      td.classList.add("aa-time-warning");
+    }
+
+    return td;
   }
 
   async function loadItems(mode) {
-    if (!tbody) return;
+    // mode can be:
+    //  - "active" | "ended" | "mine"
+    //  - { q: "keyword" } for search
+    //  - undefined for "all"
 
-    clearCountdownTimer();
     tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
 
     try {
@@ -95,17 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (mode === "ended") {
           items = await AA.api("/items/ended");
         } else if (mode === "mine") {
-          // Load all and filter based on seller/owner id
-          const all = await AA.api("/items");
-          items = (all || []).filter((item) => {
-            const owner = firstField(item, [
-              "sellerId",
-              "ownerId",
-              "owner_id",
-              "seller_id",
-            ]);
-            return owner != null && String(owner) === String(user.userId);
-          });
+          items = await AA.api("/items/mine");
         } else {
           items = await AA.api("/items");
         }
@@ -115,96 +85,126 @@ document.addEventListener("DOMContentLoaded", () => {
         items = await AA.api("/items");
       }
 
-      if (!Array.isArray(items) || !items.length) {
+      if (!Array.isArray(items) || items.length === 0) {
         tbody.innerHTML =
-          "<tr><td colspan='7' class='aa-muted small'>No items found.</td></tr>";
+          "<tr><td colspan='7' class='aa-muted'>No items found.</td></tr>";
         return;
       }
 
       tbody.innerHTML = "";
 
       items.forEach((item) => {
-        const id = firstField(item, ["itemId", "id", "item_id"]);
+        const id = item.itemId ?? item.id ?? item.item_id;
         if (!id) {
-          console.warn("Item missing id:", item);
+          console.warn("Item has no id field:", item);
           return;
         }
 
         const tr = document.createElement("tr");
 
-        const title = item.title || "Auction item";
-        const safeTitle = String(title).replace(/"/g, "&quot;");
+        const price =
+          item.currentPrice ??
+          item.curPrice ??
+          item.current_price ??
+          item.startingPrice ??
+          item.start_price ??
+          0;
 
-        const imgSrc =
+        const endIso = item.endTime;
+        const status =
+          item.status ||
+          (endIso && AA.timeRemaining(endIso) === "Ended"
+            ? "ENDED"
+            : "ACTIVE");
+
+        // image cell
+        const imgTd = document.createElement("td");
+        imgTd.classList.add("aa-col-image");
+        const img = document.createElement("img");
+        img.className = "aa-table-thumb";
+        img.src =
           item.imageUrl ||
           item.coverImageUrl ||
-          item.cover_image_url ||
-          "https://picsum.photos/seed/placeholder/120/120";
+          item.image_url ||
+          "https://picsum.photos/seed/placeholder/200/200";
+        img.alt = item.title || "Listing image";
+        imgTd.appendChild(img);
 
-        const price =
-          item.currentPrice != null ? item.currentPrice : item.startingPrice;
+        const titleTd = document.createElement("td");
+        titleTd.textContent = item.title || `Item #${id}`;
 
-        const endTime = item.endTime || item.end_time || "";
+        const priceTd = document.createElement("td");
+        priceTd.textContent = AA.formatMoney(price);
 
-        tr.innerHTML = `
-          <td class="aa-col-image">
-            <img src="${imgSrc}" alt="${safeTitle}" class="aa-table-thumb">
-          </td>
-          <td>${title}</td>
-          <td>${AA.formatMoney(price)}</td>
-          <td>${item.auctionType || ""}</td>
-          <td>${item.status || ""}</td>
-          <td data-end-time="${endTime}">${
-          AA.timeRemaining ? AA.timeRemaining(endTime) : "—"
-        }</td>
-          <td>
-            <a class="aa-btn secondary" href="item.html?id=${encodeURIComponent(
-              id
-            )}">View</a>
-          </td>
+        const typeTd = document.createElement("td");
+        typeTd.textContent = item.auctionType || item.type || "";
+
+        const statusTd = document.createElement("td");
+        statusTd.textContent = status;
+
+        const timeTd = buildTimeCell(endIso);
+
+        const actionTd = document.createElement("td");
+        actionTd.innerHTML = `
+          <a class="aa-btn secondary"
+             href="item.html?id=${encodeURIComponent(id)}">
+            View
+          </a>
         `;
+
+        tr.appendChild(imgTd);
+        tr.appendChild(titleTd);
+        tr.appendChild(priceTd);
+        tr.appendChild(typeTd);
+        tr.appendChild(statusTd);
+        tr.appendChild(timeTd);
+        tr.appendChild(actionTd);
 
         tbody.appendChild(tr);
       });
-
-      startCountdownTimer();
     } catch (err) {
-      console.error("Browse loadItems error:", err);
-      tbody.innerHTML =
-        "<tr><td colspan='7' class='aa-muted small'>Failed to load items.</td></tr>";
-      if (AA.showToast) {
-        AA.showToast(
-          "Failed to load items: " + (err.message || "Unknown error"),
-          "error"
-        );
-      }
+      console.error("Load items failed:", err);
+      tbody.innerHTML = `<tr><td colspan='7' class='aa-muted'>Failed to load items.</td></tr>`;
     }
   }
 
-  // Search form
-  if (searchForm && searchInput) {
+  // Search (UC2.1)
+  if (searchForm) {
     searchForm.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const q = searchInput.value.trim();
+      const qInput = searchForm.querySelector("input[name='q']");
+      const q = qInput ? qInput.value.trim() : "";
       if (!q) {
         loadItems("active");
+        setFilterActive(btnActive);
       } else {
         loadItems({ q });
+        setFilterActive(null);
       }
     });
   }
 
   // Filter buttons (UC2.2 / UC2.3 / UC2.4)
   if (btnActive) {
-    btnActive.addEventListener("click", () => loadItems("active"));
+    btnActive.addEventListener("click", () => {
+      setFilterActive(btnActive);
+      loadItems("active");
+    });
   }
   if (btnEnded) {
-    btnEnded.addEventListener("click", () => loadItems("ended"));
+    btnEnded.addEventListener("click", () => {
+      setFilterActive(btnEnded);
+      loadItems("ended");
+    });
   }
   if (btnMine) {
-    btnMine.addEventListener("click", () => loadItems("mine"));
+    btnMine.addEventListener("click", () => {
+      setFilterActive(btnMine);
+      loadItems("mine");
+    });
   }
 
   // Initial load: show active auctions
+  setFilterActive(btnActive);
   loadItems("active");
 });
