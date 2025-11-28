@@ -8,14 +8,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tbody = document.getElementById("items-tbody");
   const searchForm = document.getElementById("search-form");
+  const searchInput = document.getElementById("search-query");
   const btnActive = document.getElementById("btn-show-active");
   const btnEnded = document.getElementById("btn-show-ended");
   const btnMine = document.getElementById("btn-show-mine");
 
   let countdownTimer = null;
 
+  function clearCountdownTimer() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  }
+
   function updateCountdownCells() {
-    if (!tbody) return;
     const cells = tbody.querySelectorAll("td[data-end-time]");
     const now = new Date();
 
@@ -26,7 +33,11 @@ document.addEventListener("DOMContentLoaded", () => {
         cell.classList.remove("aa-time-warning", "aa-time-danger");
         return;
       }
-      const end = AA.parseAuctionTime ? AA.parseAuctionTime(iso) : new Date(iso);
+
+      const end = AA.parseAuctionTime
+        ? AA.parseAuctionTime(iso)
+        : new Date(iso);
+
       if (!end || isNaN(end.getTime())) {
         cell.textContent = "—";
         cell.classList.remove("aa-time-warning", "aa-time-danger");
@@ -57,20 +68,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function startCountdownTimer() {
-    if (countdownTimer) {
-      clearInterval(countdownTimer);
-    }
+    clearCountdownTimer();
     updateCountdownCells();
     countdownTimer = setInterval(updateCountdownCells, 1000);
   }
 
-  async function loadItems(mode) {
-    // mode can be:
-    //  - "active" | "ended" | "mine"
-    //  - { q: "keyword" } for search
-    //  - undefined for "all"
+  function firstField(obj, names, fallback = null) {
+    for (const n of names) {
+      if (obj[n] !== undefined && obj[n] !== null) return obj[n];
+    }
+    return fallback;
+  }
 
-    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
+  async function loadItems(mode) {
+    if (!tbody) return;
+
+    clearCountdownTimer();
+    tbody.innerHTML = "<tr><td colspan='7'>Loading…</td></tr>";
 
     try {
       let items;
@@ -81,62 +95,72 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (mode === "ended") {
           items = await AA.api("/items/ended");
         } else if (mode === "mine") {
-          // Load all items and filter client-side to the current seller.
-          // This avoids depending on a specific query parameter name on the API.
-          items = await AA.api("/items");
-          items = (items || []).filter((item) => {
-            const owner =
-              item.sellerId ??
-              item.ownerId ??
-              item.owner_id ??
-              item.seller_id;
+          // Load all and filter based on seller/owner id
+          const all = await AA.api("/items");
+          items = (all || []).filter((item) => {
+            const owner = firstField(item, [
+              "sellerId",
+              "ownerId",
+              "owner_id",
+              "seller_id",
+            ]);
             return owner != null && String(owner) === String(user.userId);
           });
         } else {
           items = await AA.api("/items");
         }
       } else if (mode && typeof mode === "object" && mode.q) {
-        items = await AA.api(
-          `/items/search?q=${encodeURIComponent(mode.q)}`
-        );
+        items = await AA.api(`/items/search?q=${encodeURIComponent(mode.q)}`);
       } else {
         items = await AA.api("/items");
       }
 
-      if (!Array.isArray(items) || items.length === 0) {
+      if (!Array.isArray(items) || !items.length) {
         tbody.innerHTML =
-          "<tr><td colspan='6' class='aa-muted small'>No items found.</td></tr>";
+          "<tr><td colspan='7' class='aa-muted small'>No items found.</td></tr>";
         return;
       }
 
       tbody.innerHTML = "";
 
       items.forEach((item) => {
-        // Try several possible property names from the backend response
-        const id = item.itemId ?? item.id ?? item.item_id;
-
-        // If we still don't have an id, skip this item (it's malformed)
+        const id = firstField(item, ["itemId", "id", "item_id"]);
         if (!id) {
-          console.warn("Item has no id field:", item);
+          console.warn("Item missing id:", item);
           return;
         }
 
         const tr = document.createElement("tr");
-        const price = item.currentPrice || item.startingPrice;
+
+        const title = item.title || "Auction item";
+        const safeTitle = String(title).replace(/"/g, "&quot;");
+
+        const imgSrc =
+          item.imageUrl ||
+          item.coverImageUrl ||
+          item.cover_image_url ||
+          "https://picsum.photos/seed/placeholder/120/120";
+
+        const price =
+          item.currentPrice != null ? item.currentPrice : item.startingPrice;
+
+        const endTime = item.endTime || item.end_time || "";
 
         tr.innerHTML = `
-          <td>${item.title}</td>
+          <td class="aa-col-image">
+            <img src="${imgSrc}" alt="${safeTitle}" class="aa-table-thumb">
+          </td>
+          <td>${title}</td>
           <td>${AA.formatMoney(price)}</td>
-          <td>${item.auctionType}</td>
-          <td>${item.status}</td>
-          <td data-end-time="${item.endTime || ""}">${AA.timeRemaining(
-          item.endTime
-        )}</td>
+          <td>${item.auctionType || ""}</td>
+          <td>${item.status || ""}</td>
+          <td data-end-time="${endTime}">${
+          AA.timeRemaining ? AA.timeRemaining(endTime) : "—"
+        }</td>
           <td>
-            <a class="aa-btn secondary"
-               href="item.html?id=${encodeURIComponent(id)}">
-              View
-            </a>
+            <a class="aa-btn secondary" href="item.html?id=${encodeURIComponent(
+              id
+            )}">View</a>
           </td>
         `;
 
@@ -147,10 +171,10 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error("Browse loadItems error:", err);
       tbody.innerHTML =
-        "<tr><td colspan='6' class='aa-muted small'>Failed to load items.</td></tr>";
+        "<tr><td colspan='7' class='aa-muted small'>Failed to load items.</td></tr>";
       if (AA.showToast) {
         AA.showToast(
-          `Failed to load items: ${err.message || "Unknown error"}`,
+          "Failed to load items: " + (err.message || "Unknown error"),
           "error"
         );
       }
@@ -158,12 +182,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Search form
-  if (searchForm) {
+  if (searchForm && searchInput) {
     searchForm.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const q = document.getElementById("search-query").value.trim();
+      const q = searchInput.value.trim();
       if (!q) {
-        loadItems();
+        loadItems("active");
       } else {
         loadItems({ q });
       }
