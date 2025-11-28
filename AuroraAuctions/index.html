@@ -8,12 +8,17 @@
 </head>
 <body>
   <header class="aa-header">
-    <div class="aa-logo">Aurora Auctions</div>
+    <div class="aa-logo">
+      <!-- Make the logo clickable so you can always get back to Home -->
+      <a href="index.html">Aurora Auctions</a>
+    </div>
     <nav class="aa-nav">
-      <!-- Links point into /pages so they work from the site root -->
+      <!-- Home is always available, even if the user is not logged in -->
+      <a href="index.html">Home</a>
       <a href="pages/browse.html">Browse</a>
       <a href="pages/sell.html">Sell</a>
       <a href="pages/checkout.html">Checkout</a>
+      <!-- This button is shown/hidden by AA.initNav() based on login state -->
       <button id="nav-logout" class="aa-link-button">Logout</button>
     </nav>
   </header>
@@ -25,7 +30,12 @@
         Sign up, browse active auctions, bid in real time, and pay securely once you win.
       </p>
       <div class="aa-hero-actions">
-        <a class="aa-btn primary" href="pages/login.html">Sign In / Sign Up</a>
+        <!-- AA.initNav():
+             - Logged OUT -> "Sign In / Sign Up" (link to login)
+             - Logged IN  -> "Log Out" (clears session and sends to login) -->
+        <a id="hero-auth-btn" class="aa-btn primary" href="pages/login.html">
+          Sign In / Sign Up
+        </a>
         <a class="aa-btn secondary" href="pages/browse.html">Browse Auctions</a>
       </div>
     </section>
