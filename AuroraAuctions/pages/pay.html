@@ -9,96 +9,127 @@
 <body>
 
   <header class="aa-header">
-  <div class="aa-logo">
-    <!-- Clickable logo to go back to home -->
-    <a href="../index.html">Aurora Auctions</a>
-  </div>
-  <nav class="aa-nav">
-    <a href="../index.html">Home</a>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell</a>
-    <a href="checkout.html">Checkout</a>
-    <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
-    <button id="nav-logout" class="aa-link-button">Logout</button>
-  </nav>
-</header>
+    <div class="aa-logo">
+      <!-- Clickable logo to go back to home -->
+      <a href="../index.html">Aurora Auctions</a>
+    </div>
+    <nav class="aa-nav">
+      <a href="../index.html">Home</a>
+      <a href="browse.html">Browse</a>
+      <a href="sell.html">Sell</a>
+      <a href="checkout.html">Checkout</a>
+      <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
+      <button id="nav-logout" class="aa-link-button">Logout</button>
+    </nav>
+  </header>
 
-<main class="aa-main">
-  <section class="aa-card aa-card-wide">
-    <h2>Payment</h2>
+  <main class="aa-main">
+    <section class="aa-card aa-card-wide">
+      <h2>Payment</h2>
 
-    <div class="aa-grid-2">
-      <!-- Left: order summary & shipping selection (UC4) -->
-      <div>
-        <h3>Order summary</h3>
-        <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
-        <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
+      <div class="aa-grid-2">
+        <!-- Left: order summary & shipping selection (UC4) -->
+        <div>
+          <h3>Order summary</h3>
+          <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
+          <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
 
-        <p><strong>Shipping (regular):</strong>
-          <span id="pay-ship-regular"></span>
-        </p>
-
-        <label class="aa-checkbox">
-          <input type="checkbox" id="pay-expedited" />
-          <span id="pay-expedited-label">Expedited shipping (+…)</span>
-        </label>
-
-        <p class="aa-summary-row">
-          <span>Total (item + shipping):</span>
-          <span id="pay-total"></span>
-        </p>
-
-        <p id="pay-shipping-time" class="aa-muted small"></p>
-      </div>
-
-      <!-- Right: address & card form (UC5) -->
-      <div>
-        <h3>Billing & Shipping</h3>
-        <div class="aa-box">
-          <p><strong>User:</strong> <span id="pay-user-name"></span></p>
-          <p><strong>Address:</strong><br />
-            <span id="pay-user-address"></span>
+          <!-- Regular shipping row -->
+          <p>
+            <strong id="pay-ship-regular-label">Shipping (regular):</strong>
+            <span id="pay-ship-regular"></span>
           </p>
+
+          <!-- Expedited shipping row with checkbox on the left -->
+          <label
+            class="aa-checkbox"
+            id="pay-expedited-row"
+            style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;"
+          >
+            <input type="checkbox" id="pay-expedited" />
+            <span>
+              <strong id="pay-expedited-label">Expedited shipping:</strong>
+              <span id="pay-expedited-amount"></span>
+            </span>
+          </label>
+
+          <!-- Total -->
+          <p class="aa-summary-row">
+            <span>Total (item + shipping):</span>
+            <span id="pay-total"></span>
+          </p>
+
+          <!-- Shipping time info -->
+          <p id="pay-shipping-time" class="aa-muted small"></p>
         </div>
 
-        <h3>Credit / Debit Card</h3>
-        <form id="pay-form" class="aa-form">
-          <label>
-            Card number
-            <input type="text" id="card-number" maxlength="19" inputmode="numeric" required />
-          </label>
-          <label>
-            Name on card
-            <input type="text" id="card-name" required />
-          </label>
-          <div class="aa-grid-2">
-            <label>
-              Expiry (MM/YY)
-              <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required />
-            </label>
-            <label>
-              CVV
-              <input type="password" id="card-cvv" maxlength="4" inputmode="numeric" required />
-            </label>
+        <!-- Right: address & card form (UC5) -->
+        <div>
+          <h3>Billing & Shipping</h3>
+          <div class="aa-box">
+            <p><strong>User:</strong> <span id="pay-user-name"></span></p>
+            <p>
+              <strong>Address:</strong><br />
+              <span id="pay-user-address"></span>
+            </p>
           </div>
 
-          <p id="pay-error" class="aa-error small"></p>
+          <h3>Credit / Debit Card</h3>
+          <form id="pay-form" class="aa-form">
+            <label>
+              Card number
+              <input
+                type="text"
+                id="card-number"
+                maxlength="19"
+                inputmode="numeric"
+                required
+              />
+            </label>
+            <label>
+              Name on card
+              <input type="text" id="card-name" required />
+            </label>
+            <div class="aa-grid-2">
+              <label>
+                Expiry (MM/YY)
+                <input
+                  type="text"
+                  id="card-expiry"
+                  placeholder="MM/YY"
+                  maxlength="5"
+                  required
+                />
+              </label>
+              <label>
+                CVV
+                <input
+                  type="password"
+                  id="card-cvv"
+                  maxlength="4"
+                  inputmode="numeric"
+                  required
+                />
+              </label>
+            </div>
 
-          <button type="submit" class="aa-btn primary">
-            Submit payment
-          </button>
-          <a href="browse.html" class="aa-btn secondary">Cancel</a>
-        </form>
+            <p id="pay-error" class="aa-error small"></p>
+
+            <button type="submit" class="aa-btn primary">
+              Submit payment
+            </button>
+            <a href="browse.html" class="aa-btn secondary">Cancel</a>
+          </form>
+        </div>
       </div>
-    </div>
-  </section>
-</main>
+    </section>
+  </main>
 
-<footer class="aa-footer">
-  <span>ITEC 4020 • Aurora Auctions</span>
-</footer>
+  <footer class="aa-footer">
+    <span>ITEC 4020 • Aurora Auctions</span>
+  </footer>
 
-<script src="../assets/js/common.js"></script>
-<script src="../assets/js/pay.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/pay.js"></script>
 </body>
 </html>
