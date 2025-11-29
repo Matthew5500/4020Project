@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
    *  - "active": GET /api/items/active
    *  - "ended":  GET /api/items/ended
    *  - "search": GET /api/items/search?q=...
-   *  - "mine":   same as "active", then filtered by sellerId on the client
+   *  - "mine":   GET /api/items, then filter by sellerId on the client
    */
   async function loadItems(mode, query) {
     let path = "/items/active";
@@ -33,8 +33,11 @@ document.addEventListener("DOMContentLoaded", () => {
         path = "/items/ended";
         break;
       case "mine":
-        // We'll filter by sellerId on the client side.
-        path = "/items/active";
+        // IMPORTANT CHANGE:
+        // For "My Listings" we want ALL items created by this user,
+        // not just ACTIVE ones. So we call /api/items (all items)
+        // and then filter by sellerId on the client.
+        path = "/items";
         break;
       case "active":
       default:
@@ -46,7 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const fullPath = params.toString() ? `${path}?${params}` : path;
       let items = await AA.api(fullPath);
 
-      // My Listings = items where this user is the seller
       if (mode === "mine") {
         items = items.filter((it) => it.sellerId === user.userId);
       }
