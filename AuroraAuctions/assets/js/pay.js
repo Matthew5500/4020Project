@@ -36,13 +36,12 @@ document.addEventListener("DOMContentLoaded", () => {
     expeditedSelected,
   } = checkout;
 
-  // DOM refs
+  // ---- DOM refs ----
   const elItemTitle = document.getElementById("pay-item-title");
   const elWinningPrice = document.getElementById("pay-winning-price");
   const elShipRegular = document.getElementById("pay-ship-regular");
   const elShipRegularLabel = document.getElementById("pay-ship-regular-label");
 
-  const elExpRow = document.getElementById("pay-expedited-row");
   const elExpCheckbox = document.getElementById("pay-expedited");
   const elExpLabel = document.getElementById("pay-expedited-label");
   const elExpAmount = document.getElementById("pay-expedited-amount");
@@ -60,22 +59,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardCvv = document.getElementById("card-cvv");
   const errorBox = document.getElementById("pay-error");
 
-  // Normalised flags / values
-  const hasExpShipping = !!expShipping && Number(expShipping) > 0;
   const baseShipValue = Number(baseShipping || 0);
-  const expShipValue = hasExpShipping ? Number(expShipping) : 0;
+  const expShipValue = Number(expShipping || 0);
+  const hasExpShipping = expShipValue > 0;
 
-  // ---- Fill static fields ----
+  // ---- Fill static info ----
   elItemTitle.textContent = title || `Item #${itemId}`;
   elWinningPrice.textContent = AA.formatMoney(winningPrice || 0);
   elShipRegular.textContent = AA.formatMoney(baseShipValue);
 
   if (hasExpShipping) {
-    // Proper header-style display: "Expedited shipping: $30.00"
     elExpAmount.textContent = AA.formatMoney(expShipValue);
     elExpCheckbox.disabled = false;
   } else {
-    // No configured expedited shipping
     elExpAmount.textContent = AA.formatMoney(0);
     elExpCheckbox.checked = false;
     elExpCheckbox.disabled = true;
@@ -108,40 +104,35 @@ document.addEventListener("DOMContentLoaded", () => {
       ? addrParts.join(", ")
       : "No address on file (from Sign-Up).";
 
-  // ---- State ----
-  // Only allow pre-selecting expedited if it is actually available
+  // Honor pre-selected expedited choice (from "Pay Now + Expedited")
   elExpCheckbox.checked = !!expeditedSelected && hasExpShipping;
 
-  // Compute totals based on selection
+  // ---- Totals + visual toggle ----
   function computeTotals() {
     const base = Number(winningPrice || 0);
     const useExp = hasExpShipping && elExpCheckbox.checked;
-    const shipExtra = useExp ? expShipValue : 0;
+    const extra = useExp ? expShipValue : 0;
 
-    const shippingTotal = baseShipValue + shipExtra;
+    const shippingTotal = baseShipValue + extra;
     const grandTotal = base + shippingTotal;
 
-    return { shippingTotal, grandTotal, expedited: useExp };
+    return { grandTotal, expedited: useExp };
   }
 
-  // Update which shipping option looks "active"
   function updateShippingVisuals() {
-    const useExp = hasExpShipping && elExpCheckbox.checked;
+    const { expedited } = computeTotals();
 
-    // Reset colors
     elShipRegularLabel.classList.remove("aa-muted");
     elExpLabel.classList.remove("aa-muted");
 
     if (hasExpShipping) {
-      if (useExp) {
-        // Expedited chosen → regular grayed out
-        elShipRegularLabel.classList.add("aa-muted");
+      if (expedited) {
+        elShipRegularLabel.classList.add("aa-muted"); // regular -> gray
       } else {
-        // Regular chosen → expedited grayed out
-        elExpLabel.classList.add("aa-muted");
+        elExpLabel.classList.add("aa-muted"); // expedited -> gray
       }
     } else {
-      // No expedited shipping → always gray expedited
+      // no expedited configured
       elExpLabel.classList.add("aa-muted");
     }
   }
@@ -155,29 +146,25 @@ document.addEventListener("DOMContentLoaded", () => {
   elExpCheckbox.addEventListener("change", renderTotals);
   renderTotals();
 
-  // ---- Card validation & submit ----
+  // ---- Card validation + submit ----
   function validateCard() {
     errorBox.textContent = "";
 
-    // Strip spaces and dashes
     const num = cardNumber.value.replace(/[\s-]+/g, "");
     const name = cardName.value.trim();
     const exp = cardExpiry.value.trim();
     const cvv = cardCvv.value.trim();
 
-    // Card number: 16 digits, only numbers
     if (!/^\d{16}$/.test(num)) {
       errorBox.textContent =
         "Card number must be exactly 16 digits (numbers only).";
       return false;
     }
-
     if (!name) {
       errorBox.textContent = "Please enter the name on the card.";
       return false;
     }
 
-    // Expiry: MM/YY with MM 01–12
     const match = /^(\d{2})\/(\d{2})$/.exec(exp);
     if (!match) {
       errorBox.textContent = "Please use expiry format MM/YY.";
@@ -189,7 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     }
 
-    // CVV: 3 or 4 digits
     if (!/^\d{3,4}$/.test(cvv)) {
       errorBox.textContent = "CVV must be 3 or 4 digits.";
       return false;
@@ -219,9 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(payload),
       });
 
-      // Save receipt info for receipt page if you have one
       sessionStorage.setItem("lastReceipt", JSON.stringify(receipt));
-
       AA.showToast("Payment successful.", "success");
       window.location.href = "receipt.html";
     } catch (err) {
