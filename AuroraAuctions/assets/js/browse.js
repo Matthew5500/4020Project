@@ -12,9 +12,36 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnActive = document.getElementById("btn-show-active");
   const btnEnded = document.getElementById("btn-show-ended");
   const btnMine = document.getElementById("btn-show-mine");
+  const searchButton = searchForm ? searchForm.querySelector('button[type="submit"]') : null;
 
   // Global timer handle for the countdown loop so we can reset it
   let countdownTimer = null;
+
+  /**
+   * Sets the visual "selected" state for the filter buttons.
+   * We swap their style between `aa-btn secondary` (highlighted)
+   * and `aa-btn ghost` (muted).
+   */
+  function setFilterSelected(mode) {
+    const allButtons = [searchButton, btnActive, btnEnded, btnMine];
+    allButtons.forEach((btn) => {
+      if (!btn) return;
+      // keep base .aa-btn class, just toggle secondary/ghost
+      btn.classList.remove("secondary", "ghost");
+      btn.classList.add("ghost");
+    });
+
+    let selectedBtn = null;
+    if (mode === "search") selectedBtn = searchButton;
+    else if (mode === "active") selectedBtn = btnActive;
+    else if (mode === "ended") selectedBtn = btnEnded;
+    else if (mode === "mine") selectedBtn = btnMine;
+
+    if (selectedBtn) {
+      selectedBtn.classList.remove("ghost");
+      selectedBtn.classList.add("secondary");
+    }
+  }
 
   /**
    * Loads items from the backend based on mode:
@@ -195,23 +222,35 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const q = (searchInput ? searchInput.value : "").trim();
       if (!q) {
+        setFilterSelected("active");
         loadItems("active");
       } else {
+        setFilterSelected("search");
         loadItems("search", q);
       }
     });
   }
 
   if (btnActive) {
-    btnActive.addEventListener("click", () => loadItems("active"));
+    btnActive.addEventListener("click", () => {
+      setFilterSelected("active");
+      loadItems("active");
+    });
   }
   if (btnEnded) {
-    btnEnded.addEventListener("click", () => loadItems("ended"));
+    btnEnded.addEventListener("click", () => {
+      setFilterSelected("ended");
+      loadItems("ended");
+    });
   }
   if (btnMine) {
-    btnMine.addEventListener("click", () => loadItems("mine"));
+    btnMine.addEventListener("click", () => {
+      setFilterSelected("mine");
+      loadItems("mine");
+    });
   }
 
-  // Initial load: active auctions
+  // Initial load: active auctions, highlight Active filter
+  setFilterSelected("active");
   loadItems("active");
 });
