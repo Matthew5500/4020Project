@@ -10,7 +10,6 @@
 
   <header class="aa-header">
     <div class="aa-logo">
-      <!-- Clickable logo to go back to home -->
       <a href="../index.html">Aurora Auctions</a>
     </div>
     <nav class="aa-nav">
@@ -18,7 +17,6 @@
       <a href="browse.html">Browse</a>
       <a href="sell.html">Sell</a>
       <a href="checkout.html">Checkout</a>
-      <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
       <button id="nav-logout" class="aa-link-button">Logout</button>
     </nav>
   </header>
@@ -28,30 +26,31 @@
       <h2>Payment</h2>
 
       <div class="aa-grid-2">
-        <!-- Left: order summary & shipping selection (UC4) -->
+        <!-- LEFT: Order summary & shipping selection -->
         <div>
           <h3>Order summary</h3>
           <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
           <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
 
-          <!-- Regular shipping row -->
+          <!-- Regular shipping -->
           <p>
             <strong id="pay-ship-regular-label">Shipping (regular):</strong>
             <span id="pay-ship-regular"></span>
           </p>
 
-          <!-- Expedited shipping row with checkbox on the left -->
-          <label
-            class="aa-checkbox"
-            id="pay-expedited-row"
-            style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;"
-          >
-            <input type="checkbox" id="pay-expedited" />
-            <span>
-              <strong id="pay-expedited-label">Expedited shipping:</strong>
-              <span id="pay-expedited-amount"></span>
-            </span>
-          </label>
+          <!-- Expedited shipping row: checkbox on left, text on right -->
+          <div id="pay-expedited-row" style="margin-top:0.5rem;">
+            <label
+              for="pay-expedited"
+              style="display:flex;align-items:center;gap:0.5rem;"
+            >
+              <input type="checkbox" id="pay-expedited" />
+              <span>
+                <strong id="pay-expedited-label">Expedited shipping:</strong>
+                <span id="pay-expedited-amount"></span>
+              </span>
+            </label>
+          </div>
 
           <!-- Total -->
           <p class="aa-summary-row">
@@ -59,11 +58,10 @@
             <span id="pay-total"></span>
           </p>
 
-          <!-- Shipping time info -->
           <p id="pay-shipping-time" class="aa-muted small"></p>
         </div>
 
-        <!-- Right: address & card form (UC5) -->
+        <!-- RIGHT: Billing & card details -->
         <div>
           <h3>Billing & Shipping</h3>
           <div class="aa-box">
@@ -90,6 +88,7 @@
               Name on card
               <input type="text" id="card-name" required />
             </label>
+
             <div class="aa-grid-2">
               <label>
                 Expiry (MM/YY)
@@ -115,9 +114,7 @@
 
             <p id="pay-error" class="aa-error small"></p>
 
-            <button type="submit" class="aa-btn primary">
-              Submit payment
-            </button>
+            <button type="submit" class="aa-btn primary">Submit payment</button>
             <a href="browse.html" class="aa-btn secondary">Cancel</a>
           </form>
         </div>
