@@ -8,83 +8,90 @@
 </head>
 <body>
   <header class="aa-header">
-  <div class="aa-logo">
-    <!-- Clickable logo to go back to home -->
-    <a href="../index.html">Aurora Auctions</a>
-  </div>
-  <nav class="aa-nav">
-    <a href="../index.html">Home</a>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell</a>
-    <a href="checkout.html">Checkout</a>
-    <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
-    <button id="nav-logout" class="aa-link-button">Logout</button>
-  </nav>
-</header>
+    <div class="aa-logo">
+      <!-- Clickable logo to go back to home -->
+      <a href="../index.html">Aurora Auctions</a>
+    </div>
+    <nav class="aa-nav">
+      <a href="../index.html">Home</a>
+      <a href="browse.html">Browse</a>
+      <a href="sell.html">Sell</a>
+      <a href="checkout.html">Checkout</a>
+      <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
+      <button id="nav-logout" class="aa-link-button">Logout</button>
+    </nav>
+  </header>
 
-<main class="aa-main aa-two-column">
-  <section class="aa-card" id="item-details">
-    <h2 id="item-title">Loading item…</h2>
-    <div class="aa-item-layout">
-      <div class="aa-item-image">
-        <img id="item-image" alt="Item image" />
+  <main class="aa-main aa-two-column">
+    <section class="aa-card" id="item-details">
+      <h2 id="item-title">Loading item…</h2>
+      <div class="aa-item-layout">
+        <div class="aa-item-image">
+          <img id="item-image" alt="Item image" />
+        </div>
+        <div class="aa-item-info">
+          <p id="item-description"></p>
+          <p><strong>Current price:</strong> <span id="item-price"></span></p>
+          <p><strong>Auction type:</strong> <span id="item-type"></span></p>
+          <p><strong>Status:</strong> <span id="item-status"></span></p>
+          <p><strong>Ends:</strong> <span id="item-end"></span></p>
+          <p><strong>Seller:</strong> <span id="item-seller"></span></p>
+        </div>
       </div>
-      <div class="aa-item-info">
-        <p id="item-description"></p>
-        <p><strong>Current price:</strong> <span id="item-price"></span></p>
-        <p><strong>Auction type:</strong> <span id="item-type"></span></p>
-        <p><strong>Status:</strong> <span id="item-status"></span></p>
-        <p><strong>Ends:</strong> <span id="item-end"></span></p>
-        <p><strong>Seller:</strong> <span id="item-seller"></span></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="aa-card" id="bidding-panel">
-    <h2>Bidding</h2>
-
-    <div id="forward-section" class="hidden">
-      <p>Place a higher bid than the current price (UC3.1).</p>
-      <form id="bid-form" class="aa-form-inline">
-        <input type="number" id="bid-amount" min="0" step="1" required />
-        <button type="submit" class="aa-btn primary">Place Bid</button>
-      </form>
-      <p id="bid-message" class="aa-muted small"></p>
-
-      <h3>Bid History</h3>
-      <ul id="bid-list" class="aa-list"></ul>
-    </div>
-
-    <div id="dutch-section" class="hidden">
-      <p>In Dutch auctions, price drops over time until someone accepts it (UC3.2).</p>
-      <button id="btn-dutch-price" class="aa-btn secondary">Get Current Price</button>
-      <p id="dutch-price" class="aa-emphasis"></p>
-      <button id="btn-dutch-accept" class="aa-btn primary">Buy Now</button>
-      <p id="dutch-message" class="aa-muted small"></p>
-    </div>
-
-    <section id="ended-section" class="aa-card-body hidden">
-      <p id="winner-info"></p>
-      <label class="aa-checkbox">
-        <input type="checkbox" id="expedited-checkbox" />
-        <span id="expedited-label">Expedited shipping</span>
-      </label>
-      <button id="btn-pay-now" class="aa-btn primary hidden">Pay Now</button>
     </section>
 
-    <div id="seller-controls" class="aa-seller-controls hidden">
-      <h3>Seller Controls</h3>
-      <button id="btn-end-auction" class="aa-btn danger">End Auction Now</button>
-      <p id="seller-message" class="aa-muted small"></p>
-    </div>
-  </section>
-</main>
+    <section class="aa-card" id="bidding-panel">
+      <h2>Bidding</h2>
 
-<footer class="aa-footer">
-  <span>ITEC 4020 • Aurora Auctions</span>
-</footer>
+      <div id="forward-section" class="hidden">
+        <p>Place a higher bid than the current price (UC3.1).</p>
+        <form id="bid-form" class="aa-form-inline">
+          <input type="number" id="bid-amount" min="0" step="1" required />
+          <button type="submit" class="aa-btn primary">Place Bid</button>
+        </form>
+        <p id="bid-message" class="aa-muted small"></p>
 
-<script src="../assets/js/common.js"></script>
-<script src="../assets/js/item.js"></script>
+        <h3>Bid History</h3>
+        <ul id="bid-list" class="aa-list"></ul>
+      </div>
+
+      <div id="dutch-section" class="hidden">
+        <p>In Dutch auctions, price drops over time until someone accepts it (UC3.2).</p>
+        <button id="btn-dutch-price" class="aa-btn secondary">Get Current Price</button>
+        <p id="dutch-price" class="aa-emphasis"></p>
+        <button id="btn-dutch-accept" class="aa-btn primary">Buy Now</button>
+        <p id="dutch-message" class="aa-muted small"></p>
+      </div>
+
+      <!-- UC4: Ended auction view -->
+      <section id="ended-section" class="aa-card-body hidden">
+        <p id="winner-info"></p>
+
+        <!-- Centered pay buttons -->
+        <div id="pay-actions"
+             style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;margin-top:1rem;">
+          <button id="btn-pay-standard" class="aa-btn primary hidden">
+            Pay Now
+          </button>
+          <button id="btn-pay-expedited" class="aa-btn secondary hidden">
+            Pay Now + Expedited Shipping
+          </button>
+        </div>
+      </section>
+
+      <div id="seller-controls" class="aa-seller-controls hidden">
+        <h3>Seller Controls</h3>
+        <button id="btn-end-auction" class="aa-btn danger">End Auction Now</button>
+        <p id="seller-message" class="aa-muted small"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="aa-footer">
+    <span>ITEC 4020 • Aurora Auctions</span>
+  </footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/item.js"></script>
 </body>
 </html>
