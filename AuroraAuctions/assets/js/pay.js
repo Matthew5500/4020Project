@@ -40,8 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const elItemTitle = document.getElementById("pay-item-title");
   const elWinningPrice = document.getElementById("pay-winning-price");
   const elShipRegular = document.getElementById("pay-ship-regular");
+  const elShipRegularLabel = document.getElementById("pay-ship-regular-label");
+
+  const elExpRow = document.getElementById("pay-expedited-row");
   const elExpCheckbox = document.getElementById("pay-expedited");
   const elExpLabel = document.getElementById("pay-expedited-label");
+  const elExpAmount = document.getElementById("pay-expedited-amount");
+
   const elTotal = document.getElementById("pay-total");
   const elShipTime = document.getElementById("pay-shipping-time");
 
@@ -55,17 +60,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardCvv = document.getElementById("card-cvv");
   const errorBox = document.getElementById("pay-error");
 
-  // Fill static fields
+  // Normalised flags / values
+  const hasExpShipping = !!expShipping && Number(expShipping) > 0;
+  const baseShipValue = Number(baseShipping || 0);
+  const expShipValue = hasExpShipping ? Number(expShipping) : 0;
+
+  // ---- Fill static fields ----
   elItemTitle.textContent = title || `Item #${itemId}`;
   elWinningPrice.textContent = AA.formatMoney(winningPrice || 0);
-  elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
+  elShipRegular.textContent = AA.formatMoney(baseShipValue);
 
-  if (expShipping && expShipping > 0) {
-    elExpLabel.textContent = `Expedited shipping (+${AA.formatMoney(
-      expShipping
-    )})`;
+  if (hasExpShipping) {
+    // Proper header-style display: "Expedited shipping: $30.00"
+    elExpAmount.textContent = AA.formatMoney(expShipValue);
+    elExpCheckbox.disabled = false;
   } else {
-    elExpLabel.textContent = "Expedited shipping (+$0 – not configured)";
+    // No configured expedited shipping
+    elExpAmount.textContent = AA.formatMoney(0);
+    elExpCheckbox.checked = false;
+    elExpCheckbox.disabled = true;
+    elExpLabel.classList.add("aa-muted");
   }
 
   if (typeof shippingDays === "number") {
@@ -94,30 +108,54 @@ document.addEventListener("DOMContentLoaded", () => {
       ? addrParts.join(", ")
       : "No address on file (from Sign-Up).";
 
-  // State
-  elExpCheckbox.checked = !!expeditedSelected;
+  // ---- State ----
+  // Only allow pre-selecting expedited if it is actually available
+  elExpCheckbox.checked = !!expeditedSelected && hasExpShipping;
 
+  // Compute totals based on selection
   function computeTotals() {
     const base = Number(winningPrice || 0);
-    const shipBase = Number(baseShipping || 0);
-    const useExp = elExpCheckbox.checked;
-    const shipExtra = useExp ? Number(expShipping || 0) : 0;
+    const useExp = hasExpShipping && elExpCheckbox.checked;
+    const shipExtra = useExp ? expShipValue : 0;
 
-    const shippingTotal = shipBase + shipExtra;
+    const shippingTotal = baseShipValue + shipExtra;
     const grandTotal = base + shippingTotal;
 
     return { shippingTotal, grandTotal, expedited: useExp };
   }
 
+  // Update which shipping option looks "active"
+  function updateShippingVisuals() {
+    const useExp = hasExpShipping && elExpCheckbox.checked;
+
+    // Reset colors
+    elShipRegularLabel.classList.remove("aa-muted");
+    elExpLabel.classList.remove("aa-muted");
+
+    if (hasExpShipping) {
+      if (useExp) {
+        // Expedited chosen → regular grayed out
+        elShipRegularLabel.classList.add("aa-muted");
+      } else {
+        // Regular chosen → expedited grayed out
+        elExpLabel.classList.add("aa-muted");
+      }
+    } else {
+      // No expedited shipping → always gray expedited
+      elExpLabel.classList.add("aa-muted");
+    }
+  }
+
   function renderTotals() {
     const { grandTotal } = computeTotals();
     elTotal.textContent = AA.formatMoney(grandTotal);
+    updateShippingVisuals();
   }
 
   elExpCheckbox.addEventListener("change", renderTotals);
   renderTotals();
 
-  // Simple but stricter card validation
+  // ---- Card validation & submit ----
   function validateCard() {
     errorBox.textContent = "";
 
@@ -164,53 +202,34 @@ document.addEventListener("DOMContentLoaded", () => {
     ev.preventDefault();
     if (!validateCard()) return;
 
-    const { shippingTotal, grandTotal, expedited } = computeTotals();
+    const { expedited } = computeTotals();
+
+    const payload = {
+      payerId: user.userId,
+      useExpeditedShipping: expedited,
+      cardNumber: cardNumber.value.replace(/[\s-]+/g, ""),
+      cardName: cardName.value.trim(),
+      cardExpiry: cardExpiry.value.trim(),
+      cardCvv: cardCvv.value.trim(),
+    };
 
     try {
-      const note = `Shipping: ${
-        expedited ? "EXPEDITED" : "REGULAR"
-      }, shippingTotal=${shippingTotal}`;
+      const receipt = await AA.api(`/items/${encodeURIComponent(itemId)}/pay`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-      const serverReceipt = await AA.api(
-        `/items/${encodeURIComponent(itemId)}/pay`,
-        {
-          method: "POST",
-          body: {
-            payerId: user.userId,
-            method: "FAKE_CARD",
-            note,
-          },
-        }
-      );
+      // Save receipt info for receipt page if you have one
+      sessionStorage.setItem("lastReceipt", JSON.stringify(receipt));
 
-      const lastReceipt = {
-        itemId,
-        title,
-        winningPrice,
-        baseShipping,
-        expShipping,
-        shippingTotal,
-        grandTotal,
-        expedited,
-        shippingDays,
-        payerId: user.userId,
-        backend: serverReceipt,
-        paidAt: new Date().toISOString(),
-      };
-
-      sessionStorage.setItem("lastReceipt", JSON.stringify(lastReceipt));
-      sessionStorage.removeItem("checkout");
-
-      AA.showToast("Payment successful. Showing receipt.", "success");
+      AA.showToast("Payment successful.", "success");
       window.location.href = "receipt.html";
     } catch (err) {
-      console.error("Payment failed:", err);
-      errorBox.textContent =
-        err.message || "Payment failed. Please try again.";
-      AA.showToast(
-        "Payment failed: " + (err.message || "Bad Request"),
-        "error"
-      );
+      console.error("Payment error", err);
+      const msg =
+        (err && err.message) || "Payment failed. Please try again later.";
+      errorBox.textContent = msg;
+      AA.showToast(msg, "error");
     }
   });
 });
