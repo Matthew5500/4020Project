@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   AA.initNav();
 
-  // Flexible query param handling (?id=, ?itemId=, ?item_id=)
+  // Support ?id=, ?itemId=, or ?item_id=
   const rawId =
     AA.getQueryParam("id") ||
     AA.getQueryParam("itemId") ||
@@ -15,17 +15,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const itemId = rawId && rawId !== "undefined" ? rawId : null;
 
   if (!itemId) {
-    if (AA.showToast) {
-      AA.showToast(
-        "Missing or invalid item id. Redirecting to Browse.",
-        "error"
-      );
-    }
+    AA.showToast("Missing or invalid item id. Redirecting to Browse.", "error");
     window.location.href = "browse.html";
     return;
   }
 
-  // DOM references
+  // ----- DOM references -----
   const elTitle = document.getElementById("item-title");
   const elDesc = document.getElementById("item-description");
   const elImg = document.getElementById("item-image");
@@ -40,7 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const endedSection = document.getElementById("ended-section");
   const winnerInfo = document.getElementById("winner-info");
 
-  // New: two pay buttons for standard vs expedited
   const payStandardBtn = document.getElementById("btn-pay-standard");
   const payExpeditedBtn = document.getElementById("btn-pay-expedited");
 
@@ -60,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentItem = null;
 
-  // Helper to pick first non-null field name
   function firstField(obj, names, fallback = null) {
     for (const n of names) {
       if (obj[n] !== undefined && obj[n] !== null) return obj[n];
@@ -68,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return fallback;
   }
 
-  // ---- Load item details (used by UC3 & UC4) ----
+  // ----- Load item & set up UI -----
   async function loadItem() {
     try {
       const item = await AA.api(`/items/${encodeURIComponent(itemId)}`);
@@ -77,41 +70,38 @@ document.addEventListener("DOMContentLoaded", () => {
       const winningPrice =
         firstField(item, ["currentPrice", "finalPrice", "price"]) || 0;
 
-      // Shipping fields from backend (using many possible names)
-      const baseShipping = firstField(
-        item,
-        [
-          "ship_cost_std",
-          "shipCostStd",
-          "shippingCost",
-          "shipping_cost",
-          "shipping",
-          "shippingRegular",
-          "shipping_regular",
-          "baseShipping",
-        ],
-        0
+      // --- SHIPPING VALUES (important for payment) ---
+
+      // Prefer the actual Spring JSON names: shipCostStd / shipCostExp
+      const baseShipping = Number(
+        item.shipCostStd ??
+          item.ship_cost_std ??
+          item.shippingCost ??
+          item.shipping_cost ??
+          item.shipping ??
+          item.shippingRegular ??
+          item.shipping_regular ??
+          0
       );
 
-      const expShipping = firstField(
-        item,
-        [
-          "ship_cost_exp",
-          "shipCostExp",
-          "expeditedShippingCost",
-          "expedited_shipping_cost",
-          "expeditedShipping",
-          "shippingExpedited",
-          "shipping_expedited",
-        ],
-        0
+      const expShipping = Number(
+        item.shipCostExp ??
+          item.ship_cost_exp ??
+          item.expeditedShippingCost ??
+          item.expedited_shipping_cost ??
+          item.expeditedShipping ??
+          item.shippingExpedited ??
+          item.shipping_expedited ??
+          0
       );
 
       const shippingDays = firstField(
         item,
-        ["ship_days", "shipDays", "shippingDays", "shipping_time_days"],
+        ["shipDays", "ship_days", "shippingDays", "shipping_time_days"],
         null
       );
+
+      // --- Basic details ---
 
       elTitle.textContent = item.title;
       elDesc.textContent = item.description || "No description.";
@@ -125,25 +115,24 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       elType.textContent = item.auctionType;
       elStatus.textContent = item.status;
+
       elEnd.textContent =
         AA.formatDateTime(item.endTime) +
         (item.status === "ACTIVE"
           ? ` (${AA.timeRemaining(item.endTime)})`
           : "");
-      elSeller.textContent = `Seller #${
-        firstField(item, ["sellerId", "ownerId", "userId"], "?")
-      }`;
 
-      // reset sections
+      const sellerId = firstField(item, ["sellerId", "ownerId", "userId"], "?");
+      elSeller.textContent = `Seller: Seller #${sellerId}`;
+
+      // Reset sections
       forwardSection?.classList.add("hidden");
       dutchSection?.classList.add("hidden");
       endedSection?.classList.add("hidden");
+      payStandardBtn?.classList.add("hidden");
+      payExpeditedBtn?.classList.add("hidden");
 
-      // Hide pay buttons by default
-      if (payStandardBtn) payStandardBtn.classList.add("hidden");
-      if (payExpeditedBtn) payExpeditedBtn.classList.add("hidden");
-
-      // Active auctions -> show correct bidding UI
+      // ACTIVE auctions -> show bidding area
       if (item.status === "ACTIVE") {
         if (item.auctionType === "FORWARD") {
           forwardSection?.classList.remove("hidden");
@@ -153,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // Ended auctions -> UC4: auction ended / Pay Now page
+      // ENDED auctions -> UC4 / UC5 – winner + pay buttons
       if (item.status === "ENDED") {
         endedSection?.classList.remove("hidden");
 
@@ -168,28 +157,23 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        // Show Pay buttons only to the winner
         const isWinner = item.currentWinnerId === user.userId;
         if (isWinner) {
           payStandardBtn?.classList.remove("hidden");
           payExpeditedBtn?.classList.remove("hidden");
-        } else {
-          payStandardBtn?.classList.add("hidden");
-          payExpeditedBtn?.classList.add("hidden");
         }
       }
 
       // Seller controls
-      const ownerId = firstField(item, ["sellerId", "ownerId", "userId"]);
       if (sellerControls) {
-        if (ownerId === user.userId && item.status === "ACTIVE") {
+        if (sellerId === user.userId && item.status === "ACTIVE") {
           sellerControls.classList.remove("hidden");
         } else {
           sellerControls.classList.add("hidden");
         }
       }
 
-      // Cache shipping info for checkout step
+      // Cache info for payment page
       currentItem._checkoutInfo = {
         itemId,
         title: item.title,
@@ -200,30 +184,23 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     } catch (err) {
       console.error("Load item failed:", err);
-      if (AA.showToast) {
-        AA.showToast(
-          "Failed to load item: " + (err.message || "Bad Request"),
-          "error"
-        );
-      } else {
-        alert("Failed to load item.");
-      }
+      AA.showToast("Failed to load item: " + (err.message || "Bad Request"), "error");
     }
   }
 
-  // ---- Load bids (forward auctions) ----
+  // ----- Load bids (forward auctions) -----
   async function loadBids() {
     if (!bidList) return;
     try {
-      const bids = await AA.api(
-        `/items/${encodeURIComponent(itemId)}/bids`
-      );
+      const bids = await AA.api(`/items/${encodeURIComponent(itemId)}/bids`);
       bidList.innerHTML = "";
+
       if (!bids.length) {
         bidList.innerHTML =
           "<li class='aa-muted small'>No bids yet. Be the first!</li>";
         return;
       }
+
       bids.forEach((b) => {
         const li = document.createElement("li");
         li.textContent = `${AA.formatMoney(b.amount)} by user #${
@@ -238,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ---- Forward bidding submit (UC3.1) ----
+  // ----- Forward bidding (UC3.1) -----
   if (bidForm && bidAmountInput) {
     bidForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -251,7 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const raw = bidAmountInput.value.trim();
       const amount = Number(raw);
-
       if (!raw || Number.isNaN(amount) || amount <= 0) {
         AA.showToast("Please enter a positive bid amount.", "error");
         return;
@@ -260,31 +236,22 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         await AA.api(`/items/${encodeURIComponent(itemId)}/bids`, {
           method: "POST",
-          body: {
-            bidderId: user.userId,
-            amount: amount,
-          },
+          body: { bidderId: user.userId, amount },
         });
 
-        AA.showToast(
-          "Bid placed successfully. Page will refresh.",
-          "success"
-        );
+        AA.showToast("Bid placed successfully. Page will refresh.", "success");
         bidAmountInput.value = "";
         await loadItem();
         await loadBids();
       } catch (err) {
         console.error("Bid failed:", err);
         bidMsg.textContent = err.message || "Bid failed.";
-        AA.showToast(
-          "Bid failed: " + (err.message || "Bad Request"),
-          "error"
-        );
+        AA.showToast("Bid failed: " + (err.message || "Bad Request"), "error");
       }
     });
   }
 
-  // ---- Dutch auction controls (UC3.2) ----
+  // ----- Dutch auction controls (UC3.2) -----
   if (btnDutchPrice && dutchPriceLabel) {
     btnDutchPrice.addEventListener("click", async () => {
       dutchMsg.textContent = "";
@@ -310,10 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         await AA.api(
           `/items/${encodeURIComponent(itemId)}/dutch/accept`,
-          {
-            method: "POST",
-            body: { buyerId: user.userId },
-          }
+          { method: "POST", body: { buyerId: user.userId } }
         );
         AA.showToast(
           "You accepted the current Dutch price. Auction will end.",
@@ -331,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---- Seller: end auction manually ----
+  // ----- Seller: end auction -----
   if (btnEndAuction) {
     btnEndAuction.addEventListener("click", async () => {
       sellerMsg.textContent = "";
@@ -352,13 +316,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---- UC5: Pay Now → Payment page ----
+  // ----- UC5: Pay Now -> Payment page -----
   function goToPay(expedited) {
     if (!currentItem || !currentItem._checkoutInfo) {
-      AA.showToast(
-        "Item details not ready for payment yet.",
-        "error"
-      );
+      AA.showToast("Item details not ready for payment yet.", "error");
       return;
     }
 
@@ -371,24 +332,15 @@ document.addEventListener("DOMContentLoaded", () => {
       baseShipping: info.baseShipping,
       expShipping: info.expShipping,
       shippingDays: info.shippingDays,
-      expeditedSelected: !!expedited, // what pay.js will use
+      expeditedSelected: !!expedited,
     };
 
     sessionStorage.setItem("checkout", JSON.stringify(checkout));
     window.location.href = "pay.html";
   }
 
-  if (payStandardBtn) {
-    payStandardBtn.addEventListener("click", () => {
-      goToPay(false); // regular shipping
-    });
-  }
-
-  if (payExpeditedBtn) {
-    payExpeditedBtn.addEventListener("click", () => {
-      goToPay(true); // expedited shipping
-    });
-  }
+  payStandardBtn?.addEventListener("click", () => goToPay(false));
+  payExpeditedBtn?.addEventListener("click", () => goToPay(true));
 
   // Initial load
   loadItem();
