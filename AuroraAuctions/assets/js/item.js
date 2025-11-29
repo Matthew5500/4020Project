@@ -40,9 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const endedSection = document.getElementById("ended-section");
   const winnerInfo = document.getElementById("winner-info");
 
-  const payBtn = document.getElementById("btn-pay-now");
-  const expeditedCheckbox = document.getElementById("expedited-checkbox");
-  const expeditedLabel = document.getElementById("expedited-label");
+  // New: two pay buttons for standard vs expedited
+  const payStandardBtn = document.getElementById("btn-pay-standard");
+  const payExpeditedBtn = document.getElementById("btn-pay-expedited");
 
   const bidForm = document.getElementById("bid-form");
   const bidAmountInput = document.getElementById("bid-amount");
@@ -77,14 +77,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const winningPrice =
         firstField(item, ["currentPrice", "finalPrice", "price"]) || 0;
 
-      // 🔹 Try many possible field names so we actually pick up your $50 value
+      // Shipping fields from backend (using many possible names)
       const baseShipping = firstField(
         item,
         [
-          // exact DB / typical entity names
           "ship_cost_std",
           "shipCostStd",
-          // older generic guesses (keep as fallbacks)
           "shippingCost",
           "shipping_cost",
           "shipping",
@@ -94,14 +92,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         0
       );
-      
+
       const expShipping = firstField(
         item,
         [
-          // exact DB / typical entity names
           "ship_cost_exp",
           "shipCostExp",
-          // generic fallbacks
           "expeditedShippingCost",
           "expedited_shipping_cost",
           "expeditedShipping",
@@ -110,15 +106,10 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         0
       );
-      
+
       const shippingDays = firstField(
         item,
-        [
-          "ship_days",   // DB column
-          "shipDays",    // typical entity name
-          "shippingDays",
-          "shipping_time_days",
-        ],
+        ["ship_days", "shipDays", "shippingDays", "shipping_time_days"],
         null
       );
 
@@ -148,6 +139,10 @@ document.addEventListener("DOMContentLoaded", () => {
       dutchSection?.classList.add("hidden");
       endedSection?.classList.add("hidden");
 
+      // Hide pay buttons by default
+      if (payStandardBtn) payStandardBtn.classList.add("hidden");
+      if (payExpeditedBtn) payExpeditedBtn.classList.add("hidden");
+
       // Active auctions -> show correct bidding UI
       if (item.status === "ACTIVE") {
         if (item.auctionType === "FORWARD") {
@@ -156,7 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (item.auctionType === "DUTCH") {
           dutchSection?.classList.remove("hidden");
         }
-        payBtn?.classList.add("hidden");
       }
 
       // Ended auctions -> UC4: auction ended / Pay Now page
@@ -174,23 +168,14 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        // Shipping + expedited option (UC4)
-        if (expeditedLabel) {
-          if (expShipping && expShipping > 0) {
-            expeditedLabel.textContent = `Expedited shipping (+${AA.formatMoney(
-              expShipping
-            )})`;
-          } else {
-            expeditedLabel.textContent =
-              "Expedited shipping (+$0 – not configured)";
-          }
-        }
-
-        // Show Pay Now only to winner
-        if (payBtn && item.currentWinnerId === user.userId) {
-          payBtn.classList.remove("hidden");
+        // Show Pay buttons only to the winner
+        const isWinner = item.currentWinnerId === user.userId;
+        if (isWinner) {
+          payStandardBtn?.classList.remove("hidden");
+          payExpeditedBtn?.classList.remove("hidden");
         } else {
-          payBtn?.classList.add("hidden");
+          payStandardBtn?.classList.add("hidden");
+          payExpeditedBtn?.classList.add("hidden");
         }
       }
 
@@ -367,34 +352,41 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---- Pay Now → UC5 Payment page ----
-  if (payBtn) {
-    payBtn.addEventListener("click", () => {
-      if (!currentItem || !currentItem._checkoutInfo) {
-        AA.showToast(
-          "Item details not ready for payment yet.",
-          "error"
-        );
-        return;
-      }
+  // ---- UC5: Pay Now → Payment page ----
+  function goToPay(expedited) {
+    if (!currentItem || !currentItem._checkoutInfo) {
+      AA.showToast(
+        "Item details not ready for payment yet.",
+        "error"
+      );
+      return;
+    }
 
-      const info = currentItem._checkoutInfo;
-      const expedited = expeditedCheckbox?.checked || false;
+    const info = currentItem._checkoutInfo;
 
-      // Save checkout info for pay.html
-      const checkout = {
-        itemId: info.itemId,
-        title: info.title,
-        winningPrice: info.winningPrice,
-        baseShipping: info.baseShipping,
-        expShipping: info.expShipping,
-        shippingDays: info.shippingDays,
-        expeditedSelected: expedited,
-      };
+    const checkout = {
+      itemId: info.itemId,
+      title: info.title,
+      winningPrice: info.winningPrice,
+      baseShipping: info.baseShipping,
+      expShipping: info.expShipping,
+      shippingDays: info.shippingDays,
+      expeditedSelected: !!expedited, // what pay.js will use
+    };
 
-      sessionStorage.setItem("checkout", JSON.stringify(checkout));
+    sessionStorage.setItem("checkout", JSON.stringify(checkout));
+    window.location.href = "pay.html";
+  }
 
-      window.location.href = "pay.html";
+  if (payStandardBtn) {
+    payStandardBtn.addEventListener("click", () => {
+      goToPay(false); // regular shipping
+    });
+  }
+
+  if (payExpeditedBtn) {
+    payExpeditedBtn.addEventListener("click", () => {
+      goToPay(true); // expedited shipping
     });
   }
 
