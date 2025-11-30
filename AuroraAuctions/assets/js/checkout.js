@@ -1,5 +1,5 @@
 // assets/js/checkout.js
-// Shows auctions the current user has won and still needs to pay for.
+// Lists ended auctions that the current user has won but not yet paid for.
 
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
@@ -8,155 +8,146 @@ document.addEventListener("DOMContentLoaded", () => {
   AA.initNav();
 
   const tbody = document.getElementById("checkout-tbody");
-
-  // helper from item.js
-  function firstField(obj, names, fallback = null) {
-    for (const n of names) {
-      if (obj[n] !== undefined && obj[n] !== null) return obj[n];
-    }
-    return fallback;
-  }
-
-  function loadPaidIds() {
-    try {
-      const raw = localStorage.getItem("aaPaidItems");
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) {
-      console.warn("Could not parse aaPaidItems:", e);
-      return [];
-    }
-  }
+  if (!tbody) return;
 
   async function loadCheckoutItems() {
-    if (!tbody) return;
-    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
+    tbody.innerHTML = `<tr><td colspan="6" class="aa-muted">Loading…</td></tr>`;
+
+    // Load list of item IDs that we've already paid
+    let paidKeys = [];
+    try {
+      const raw = localStorage.getItem("aaPaidItems") || "[]";
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        paidKeys = arr.map((v) => String(v));
+      }
+    } catch (err) {
+      console.warn("Failed to parse aaPaidItems:", err);
+    }
 
     try {
       const ended = await AA.api("/items/ended");
-      if (!Array.isArray(ended)) {
-        tbody.innerHTML =
-          "<tr><td colspan='6' class='aa-muted'>Unexpected response from server.</td></tr>";
-        return;
-      }
 
-      const paidIds = loadPaidIds();
+      const rows = [];
 
-      // Only items:
-      // - where this user is the current winner
-      // - and whose ID is NOT in aaPaidItems
-      const myWins = ended.filter((item) => {
+      ended.forEach((item) => {
+        const id =
+          item.id ??
+          item.itemId ??
+          item.item_id ??
+          item.ID ??
+          item.ITEM_ID;
+
+        if (id == null) {
+          return;
+        }
+
+        const key = String(id);
+
+        // Skip items we've already paid for
+        if (paidKeys.includes(key)) {
+          return;
+        }
+
         const winnerId =
           item.currentWinnerId ??
           item.current_winner_id ??
           item.winnerId ??
           item.winner_id;
 
-        const id =
-          item.itemId ?? item.id ?? item.item_id ?? item.auctionItemId;
+        if (winnerId == null || Number(winnerId) !== Number(user.userId)) {
+          return;
+        }
 
-        if (winnerId !== user.userId) return false;
-        if (id == null) return true; // if no id, don't hide it
-        return !paidIds.includes(id);
+        const winningPrice =
+          item.currentPrice ??
+          item.finalPrice ??
+          item.price ??
+          item.startingPrice ??
+          0;
+
+        // Try to infer shipping info from any of the possible field names
+        const baseShipping =
+          item.ship_cost_std ??
+          item.shipCostStd ??
+          item.shippingStandard ??
+          item.shippingRegular ??
+          0;
+
+        const expShipping =
+          item.ship_cost_exp ??
+          item.shipCostExp ??
+          item.shippingExpedited ??
+          0;
+
+        const shippingDays =
+          item.ship_days ?? item.shipDays ?? item.shippingDays ?? null;
+
+        const title = item.title || `Item #${id}`;
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td>${title}</td>
+          <td>${AA.formatMoney(winningPrice)}</td>
+          <td>${AA.formatMoney(baseShipping || 0)}</td>
+          <td>${AA.formatMoney(expShipping || 0)}</td>
+          <td>${
+            shippingDays == null || shippingDays === 0
+              ? "Not specified"
+              : `${shippingDays} day(s)`
+          }</td>
+          <td>
+            <button class="aa-btn primary aa-btn-sm" data-item-id="${key}">
+              Pay
+            </button>
+          </td>
+        `;
+
+        const btn = tr.querySelector("button[data-item-id]");
+        if (btn) {
+          btn.addEventListener("click", () => {
+            startCheckoutFromItem({
+              id,
+              title,
+              winningPrice,
+              baseShipping: Number(baseShipping || 0),
+              expShipping: Number(expShipping || 0),
+              shippingDays,
+            });
+          });
+        }
+
+        rows.push(tr);
       });
-
-      if (!myWins.length) {
-        tbody.innerHTML =
-          "<tr><td colspan='6' class='aa-muted'>You have no unpaid won auctions.</td></tr>";
-        return;
-      }
 
       tbody.innerHTML = "";
 
-      myWins.forEach((item) => {
-        const id =
-          item.itemId ?? item.id ?? item.item_id ?? item.auctionItemId;
-
-        const winningPrice =
-          firstField(item, ["currentPrice", "finalPrice", "price"]) || 0;
-
-        const baseShipping = firstField(
-          item,
-          [
-            "ship_cost_std",
-            "shipCostStd",
-            "shippingCost",
-            "shipping_cost",
-            "shipping",
-            "shippingRegular",
-            "shipping_regular",
-            "baseShipping",
-          ],
-          0
-        );
-
-        const expShipping = firstField(
-          item,
-          [
-            "ship_cost_exp",
-            "shipCostExp",
-            "expeditedShippingCost",
-            "expedited_shipping_cost",
-            "expeditedShipping",
-            "shippingExpedited",
-            "shipping_expedited",
-          ],
-          0
-        );
-
-        const shippingDays = firstField(
-          item,
-          ["ship_days", "shipDays", "shippingDays", "shipping_time_days"],
-          null
-        );
-
-        const paymentStatus =
-          item.paymentStatus || item.payment_status || "UNPAID";
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.title || "(no title)"}</td>
-          <td>${AA.formatMoney(winningPrice)}</td>
-          <td>${AA.formatMoney(baseShipping)}</td>
-          <td>${paymentStatus}</td>
-          <td>${AA.formatDateTime(item.endTime)}</td>
-          <td></td>
-        `;
-
-        const actionCell = tr.lastElementChild;
-
-        const btn = document.createElement("button");
-        btn.className = "aa-btn primary small";
-        btn.textContent = "Pay";
-        btn.addEventListener("click", () => {
-          const checkout = {
-            itemId: id,
-            title: item.title,
-            winningPrice,
-            baseShipping,
-            expShipping,
-            shippingDays,
-            expeditedSelected: false,
-          };
-          sessionStorage.setItem("checkout", JSON.stringify(checkout));
-          window.location.href = "pay.html";
-        });
-        actionCell.appendChild(btn);
-
-        tbody.appendChild(tr);
-      });
-    } catch (err) {
-      console.error("Checkout load failed:", err);
-      tbody.innerHTML =
-        "<tr><td colspan='6' class='aa-muted'>Failed to load checkout items.</td></tr>";
-      if (AA.showToast) {
-        AA.showToast(
-          "Failed to load checkout items: " + (err.message || "Error"),
-          "error"
-        );
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="aa-muted">No unpaid winnings found.</td></tr>`;
+      } else {
+        rows.forEach((tr) => tbody.appendChild(tr));
       }
+    } catch (err) {
+      console.error("Failed to load checkout items:", err);
+      tbody.innerHTML = `<tr><td colspan="6" class="aa-muted">Failed to load checkout items.</td></tr>`;
+      AA.showToast("Failed to load checkout items", err.message || String(err), "error");
     }
+  }
+
+  function startCheckoutFromItem(info) {
+    const checkout = {
+      itemId: info.id,
+      title: info.title,
+      winningPrice: info.winningPrice,
+      baseShipping: info.baseShipping || 0,
+      expShipping: info.expShipping || 0,
+      shippingDays: info.shippingDays ?? null,
+      expeditedSelected: false,
+    };
+
+    sessionStorage.setItem("checkout", JSON.stringify(checkout));
+    window.location.href = "pay.html";
   }
 
   loadCheckoutItems();
