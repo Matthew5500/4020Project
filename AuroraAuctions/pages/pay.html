@@ -6,18 +6,22 @@
     <link rel="stylesheet" href="../assets/css/styles.css" />
   </head>
   <body class="aa-body">
-    <!-- Site header (same structure as other pages) -->
-    <header class="aa-nav">
-      <div class="aa-nav-left">
-        <a href="../index.html" class="aa-logo">Aurora Auctions</a>
+    <!-- HEADER: same structure as other pages -->
+    <header class="aa-header">
+      <div class="aa-nav">
+        <div class="aa-nav-left">
+          <a href="../index.html" class="aa-logo">Aurora Auctions</a>
+        </div>
+        <nav class="aa-nav-right">
+          <a href="../index.html">Home</a>
+          <a href="browse.html">Browse</a>
+          <a href="sell.html">Sell</a>
+          <a href="checkout.html">Checkout</a>
+          <button id="nav-logout" class="aa-link-button hidden">
+            Logout
+          </button>
+        </nav>
       </div>
-      <nav class="aa-nav-right">
-        <a href="../index.html">Home</a>
-        <a href="browse.html">Browse</a>
-        <a href="sell.html">Sell</a>
-        <a href="checkout.html">Checkout</a>
-        <button id="nav-logout" class="aa-link-button hidden">Logout</button>
-      </nav>
     </header>
 
     <main class="aa-main">
@@ -41,7 +45,7 @@
               <span id="pay-ship-regular">$0.00</span>
             </p>
 
-            <!-- Expedited shipping row: amount + [checkbox] Use expedited -->
+            <!-- Expedited shipping row -->
             <p>
               <strong>Expedited shipping:</strong>
               <span id="pay-exp-price">$0.00</span>
@@ -87,8 +91,11 @@
             <h3>Credit / Debit Card</h3>
 
             <form id="pay-form" class="aa-form">
-              <!-- Card number: max 16 digits -->
-              <div class="aa-form-row">
+              <!-- Card number: stack label & input vertically, closer together -->
+              <div
+                class="aa-form-row"
+                style="display: flex; flex-direction: column; gap: 0.35rem;"
+              >
                 <label for="card-number">Card number</label>
                 <input
                   type="text"
@@ -103,14 +110,21 @@
                 />
               </div>
 
-              <!-- Name on card -->
-              <div class="aa-form-row">
+              <!-- Name on card: letters and spaces only -->
+              <div
+                class="aa-form-row"
+                style="display: flex; flex-direction: column; gap: 0.35rem;"
+              >
                 <label for="card-name">Name on card</label>
                 <input
                   type="text"
                   id="card-name"
                   autocomplete="cc-name"
                   required
+                  maxlength="60"
+                  pattern="[A-Za-z ]+"
+                  title="Name on card can only contain letters and spaces"
+                  oninput="this.value = this.value.replace(/[^a-zA-Z ]/g, '');"
                 />
               </div>
 
@@ -131,7 +145,7 @@
                   />
                 </div>
 
-                <!-- CVV: max 4 digits -->
+                <!-- CVV -->
                 <div>
                   <label for="card-cvv">CVV</label>
                   <input
@@ -159,7 +173,7 @@
       </section>
     </main>
 
-    <!-- Site footer to match other pages -->
+    <!-- FOOTER -->
     <footer class="aa-footer">
       <p>&copy; 2025 Aurora Auctions. All rights reserved.</p>
     </footer>
