@@ -47,7 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const elCardExpiry = document.getElementById("card-expiry");
   const elCardCvv = document.getElementById("card-cvv");
 
-  // ----- apply shipping overrides from localStorage -----
+  // ----- pull values from checkout -----
+
   let baseShipping = Number(checkout.baseShipping || 0);
   let expShipping = Number(checkout.expShipping || 0);
   let shippingDays =
@@ -55,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ? checkout.shippingDays
       : null;
 
+  // Try to override shipping from localStorage (set when you created the item)
   try {
     const rawOverrides = localStorage.getItem("aaShippingOverrides");
     if (rawOverrides) {
@@ -76,14 +78,17 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Could not read shipping overrides:", e);
   }
 
-  // keep checkout in sync for receipt.js
-  checkout.baseShipping = baseShipping;
-  checkout.expShipping = expShipping;
-  checkout.shippingDays = shippingDays;
+  // ----- populate summary -----
 
-  // ----- fill basic summary -----
-  if (elTitle) elTitle.textContent = checkout.title || "Unknown item";
-  if (elPrice) elPrice.textContent = AA.formatMoney(checkout.finalPrice || 0);
+  if (elTitle) {
+    elTitle.textContent = checkout.title || "Unknown item";
+  }
+
+  // FIX: use winningPrice (with a fallback to finalPrice if present)
+  if (elPrice)
+    elPrice.textContent = AA.formatMoney(
+      checkout.winningPrice ?? checkout.finalPrice ?? 0
+    );
 
   if (elShipRegular) {
     elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
@@ -105,7 +110,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const nameParts = [];
     if (user.firstName) nameParts.push(user.firstName);
     if (user.lastName) nameParts.push(user.lastName);
-    const full = nameParts.join(" ") || user.username || `user #${user.userId}`;
+    const full =
+      nameParts.join(" ") || user.username || `user #${user.userId}`;
     elUserName.textContent = full;
   }
 
@@ -120,114 +126,96 @@ document.addEventListener("DOMContentLoaded", () => {
     elExpCheckbox.disabled = !hasExp;
     elExpCheckbox.checked = hasExp && !!checkout.expeditedSelected;
   }
-
-  // ----- helper to compute totals -----
-  function computeTotals() {
-    const price = Number(checkout.finalPrice || 0);
-
-    const useExp = elExpCheckbox && elExpCheckbox.checked && hasExp;
-
-    const shipChosen = useExp ? expShipping : baseShipping;
-    const shippingTotal = shipChosen;
-    const grandTotal = price + shippingTotal;
-
-    return { shippingTotal, grandTotal, expedited: useExp };
+  if (elExpLabel && !hasExp) {
+    elExpLabel.classList.add("aa-muted");
   }
 
-  function renderTotals() {
-    const { grandTotal, expedited } = computeTotals();
+  function recalcTotal() {
+    const price = Number(
+      checkout.winningPrice ?? checkout.finalPrice ?? 0
+    );
+    const useExp = elExpCheckbox && elExpCheckbox.checked && hasExp;
+    const ship = useExp ? expShipping : baseShipping;
+    const total = price + ship;
     if (elTotal) {
-      elTotal.textContent = AA.formatMoney(grandTotal);
-    }
-
-    // Grey/white toggling
-    if (elShipRegular && elExpLabel) {
-      if (expedited) {
-        elExpLabel.classList.remove("aa-muted");
-        elShipRegular.classList.add("aa-muted");
-      } else {
-        elExpLabel.classList.add("aa-muted");
-        elShipRegular.classList.remove("aa-muted");
-      }
+      elTotal.textContent = AA.formatMoney(total);
     }
   }
 
   if (elExpCheckbox) {
-    elExpCheckbox.addEventListener("change", renderTotals);
-  }
-  renderTotals();
-
-  // ----- very simple card validation -----
-  function validateCard() {
-    const number = elCardNumber.value.replace(/\s+/g, "");
-    const name = elCardName.value.trim();
-    const expiry = elCardExpiry.value.trim();
-    const cvv = elCardCvv.value.trim();
-
-    if (!number || number.length < 12 || !/^\d+$/.test(number)) {
-      return "Enter a valid card number (at least 12 digits).";
-    }
-    if (!name) {
-      return "Enter the name on the card.";
-    }
-    if (!/^\d{2}\/\d{2}$/.test(expiry)) {
-      return "Enter expiry as MM/YY.";
-    }
-    if (!/^\d{3,4}$/.test(cvv)) {
-      return "Enter a 3–4 digit CVV.";
-    }
-    return null;
+    elExpCheckbox.addEventListener("change", () => {
+      checkout.expeditedSelected = !!elExpCheckbox.checked;
+      sessionStorage.setItem("checkout", JSON.stringify(checkout));
+      recalcTotal();
+    });
   }
 
-  // ----- submit handler -----
+  recalcTotal();
+
+  // ----- fake payment form -----
+
   if (elForm) {
     elForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       if (elError) elError.textContent = "";
 
-      const cardError = validateCard();
-      if (cardError) {
-        if (elError) elError.textContent = cardError;
-        AA.showToast(cardError, "error");
+      const cardNumber = (elCardNumber?.value || "").trim();
+      const cardName = (elCardName?.value || "").trim();
+      const cardExpiry = (elCardExpiry?.value || "").trim();
+      const cardCvv = (elCardCvv?.value || "").trim();
+
+      if (
+        !cardNumber ||
+        !cardName ||
+        !cardExpiry ||
+        !cardCvv ||
+        cardNumber.length < 8
+      ) {
+        if (elError) {
+          elError.textContent =
+            "Please enter a realistic-looking card; this is not a real payment.";
+        }
         return;
       }
 
-      const { grandTotal, expedited } = computeTotals();
-
       try {
-        const receipt = await AA.api(`/items/${checkout.itemId}/pay`, {
-          method: "POST",
-          body: {
-            payerId: user.userId,
-            method: "CARD",
-            note: expedited ? "EXPEDITED" : "STANDARD",
-          },
-        });
+        const receipt = await AA.api(
+          `/items/${checkout.itemId}/pay`,
+          {
+            method: "POST",
+            body: {
+              payerId: user.userId,
+              paymentMethod: "CARD",
+              note: checkout.expeditedSelected
+                ? "Expedited shipping selected"
+                : "Regular shipping selected",
+            },
+          }
+        );
 
-        // Build a combined client-side receipt for the receipt page
         const lastReceipt = {
+          itemId: checkout.itemId,
           itemTitle: checkout.title,
-          finalPrice: checkout.finalPrice,
+          // store the amount the user actually paid
+          finalPrice: checkout.winningPrice ?? checkout.finalPrice,
           baseShipping,
           expShipping,
-          grandTotal,
           shippingDays,
-          paidAt: receipt.paymentTime || new Date().toISOString(),
+          expeditedSelected: !!checkout.expeditedSelected,
+          paidAt: receipt.paymentTime || null,
         };
-
         sessionStorage.setItem(
           "lastReceipt",
           JSON.stringify(lastReceipt)
         );
 
-        AA.showToast("Payment successful. Showing receipt.", "success");
         window.location.href = "receipt.html";
       } catch (err) {
         console.error("Payment failed:", err);
-        const msg =
-          (err && err.message) || "Payment failed. Please try again.";
-        if (elError) elError.textContent = msg;
-        AA.showToast(msg, "error");
+        if (elError) {
+          elError.textContent =
+            "Payment failed: " + (err.message || "Server error");
+        }
       }
     });
   }
