@@ -19,7 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let checkout;
   try {
     checkout = JSON.parse(rawCheckout);
-  } catch {
+  } catch (e) {
+    console.error("Failed to parse checkout object:", e);
     AA.showToast(
       "Something went wrong loading the checkout. Redirecting to Browse.",
       "error"
@@ -47,8 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const elCardExpiry = document.getElementById("card-expiry");
   const elCardCvv = document.getElementById("card-cvv");
 
-  // ----- pull values from checkout -----
-
+  // ----- base shipping values from checkout -----
   let baseShipping = Number(checkout.baseShipping || 0);
   let expShipping = Number(checkout.expShipping || 0);
   let shippingDays =
@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ? checkout.shippingDays
       : null;
 
-  // Try to override shipping from localStorage (set when you created the item)
+  // If we created overrides when listing the item, apply them
   try {
     const rawOverrides = localStorage.getItem("aaShippingOverrides");
     if (rawOverrides) {
@@ -78,26 +78,18 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Could not read shipping overrides:", e);
   }
 
-  // ----- populate summary -----
+  // ----- populate UI -----
+  if (elTitle) elTitle.textContent = checkout.title || "Unknown item";
 
-  if (elTitle) {
-    elTitle.textContent = checkout.title || "Unknown item";
-  }
+  const winningPrice =
+    Number(checkout.winningPrice ?? checkout.finalPrice ?? 0);
 
-  // Winning price
-  if (elPrice)
-    elPrice.textContent = AA.formatMoney(
-      checkout.winningPrice ?? checkout.finalPrice ?? 0
-    );
-
-  if (elShipRegular) {
+  if (elPrice) elPrice.textContent = AA.formatMoney(winningPrice);
+  if (elShipRegular)
     elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
-  }
-  if (elExpPrice) {
+  if (elExpPrice)
     elExpPrice.textContent = AA.formatMoney(expShipping || 0);
-  }
 
-  // NEW: nice, compact ship time text
   if (elShipTime) {
     if (typeof shippingDays === "number") {
       elShipTime.textContent = `${shippingDays} day(s)`;
@@ -116,11 +108,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (elUserAddress) {
-    // You can improve this later if you actually store addresses.
     elUserAddress.textContent = "No address on file (from Sign-Up).";
   }
 
-  // Disable expedited if there's no extra cost configured
   const hasExp = expShipping > 0;
   if (elExpCheckbox) {
     elExpCheckbox.disabled = !hasExp;
@@ -131,15 +121,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function recalcTotal() {
-    const price = Number(
-      checkout.winningPrice ?? checkout.finalPrice ?? 0
-    );
-    const useExp = elExpCheckbox && elExpCheckbox.checked && hasExp;
+    const useExp =
+      elExpCheckbox && elExpCheckbox.checked && hasExp;
     const ship = useExp ? expShipping : baseShipping;
-    const total = price + ship;
-    if (elTotal) {
-      elTotal.textContent = AA.formatMoney(total);
-    }
+    const total = winningPrice + ship;
+    if (elTotal) elTotal.textContent = AA.formatMoney(total);
   }
 
   if (elExpCheckbox) {
@@ -152,8 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   recalcTotal();
 
-  // ----- fake payment form -----
-
+  // ----- fake payment submission -----
   if (elForm) {
     elForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -173,35 +158,40 @@ document.addEventListener("DOMContentLoaded", () => {
       ) {
         if (elError) {
           elError.textContent =
-            "Please enter a realistic-looking card; this is not a real payment.";
+            "Please fill in card details (this is only a simulated payment).";
         }
         return;
       }
 
       try {
+        const useExp =
+          elExpCheckbox && elExpCheckbox.checked && hasExp;
+
+        const body = {
+          payerId: user.userId,
+          method: "CARD",
+          note: useExp
+            ? "Expedited shipping selected"
+            : "Regular shipping selected",
+        };
+
         const receipt = await AA.api(
           `/items/${checkout.itemId}/pay`,
           {
             method: "POST",
-            body: {
-              payerId: user.userId,
-              paymentMethod: "CARD",
-              note: checkout.expeditedSelected
-                ? "Expedited shipping selected"
-                : "Regular shipping selected",
-            },
+            body,
           }
         );
 
+        // Store receipt info for the receipt page
         const lastReceipt = {
           itemId: checkout.itemId,
           itemTitle: checkout.title,
-          // store the amount the user actually paid
-          finalPrice: checkout.winningPrice ?? checkout.finalPrice,
+          finalPrice: winningPrice,
           baseShipping,
           expShipping,
           shippingDays,
-          expeditedSelected: !!checkout.expeditedSelected,
+          expeditedSelected: useExp,
           paidAt: receipt.paymentTime || null,
         };
         sessionStorage.setItem(
@@ -209,13 +199,37 @@ document.addEventListener("DOMContentLoaded", () => {
           JSON.stringify(lastReceipt)
         );
 
+        // 🔹 Mark this item as paid in localStorage so Checkout can hide it
+        try {
+          let paidIds = [];
+          const rawPaid = localStorage.getItem("aaPaidItems");
+          if (rawPaid) {
+            paidIds = JSON.parse(rawPaid);
+            if (!Array.isArray(paidIds)) paidIds = [];
+          }
+          if (!paidIds.includes(checkout.itemId)) {
+            paidIds.push(checkout.itemId);
+            localStorage.setItem(
+              "aaPaidItems",
+              JSON.stringify(paidIds)
+            );
+          }
+        } catch (e) {
+          console.warn("Could not update aaPaidItems:", e);
+        }
+
+        AA.showToast("Payment successful. Showing receipt.", "success");
         window.location.href = "receipt.html";
       } catch (err) {
         console.error("Payment failed:", err);
         if (elError) {
           elError.textContent =
-            "Payment failed: " + (err.message || "Server error");
+            "Payment failed. Please try again in a moment.";
         }
+        AA.showToast(
+          "Payment failed: " + (err.message || "Server error"),
+          "error"
+        );
       }
     });
   }
