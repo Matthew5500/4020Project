@@ -109,19 +109,15 @@ window.AA = (function () {
    * Place your image at:
    *   AuroraAuctions/assets/img/item-placeholder.png
    */
-  AA.getItemImageUrl = function (item) {
-    if (!item) {
-      return "assets/img/item-placeholder.svg";
+  function getItemImageUrl(item) {
+    if (item && item.coverImageUrl) {
+      return item.coverImageUrl;
     }
-  
-    // Prefer coverImageUrl, but fall back to old imageUrl field if present
-    const url = (item.coverImageUrl || item.imageUrl || "").trim();
-  
-    if (!url) {
-      return "assets/img/item-placeholder.svg";
-    }
-    return url;
-  };
+
+    const isInPages = window.location.pathname.includes("/pages/");
+    const base = isInPages ? "../" : "";
+    return base + "assets/img/item-placeholder.png";
+  }
 
   // ----------------- navigation -----------------
 
@@ -229,19 +225,6 @@ window.AA = (function () {
       el.style.opacity = "0";
     }, 4000);
   }
-
-  //Shipping Overrides Helper
-  AA.getShippingOverride = function (itemId) {
-    try {
-      const raw = localStorage.getItem("aaShippingOverrides");
-      if (!raw) return null;
-      const overrides = JSON.parse(raw);
-      return overrides[String(itemId)] || null;
-    } catch (e) {
-      console.warn("Could not read shipping overrides", e);
-      return null;
-    }
-  };
 
   // ----------------- public API -----------------
 

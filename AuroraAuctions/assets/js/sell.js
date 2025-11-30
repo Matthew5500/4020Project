@@ -20,9 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const description = (fd.get("description") || "").trim();
     const category = fd.get("category") || "";
     const conditionCode = fd.get("conditionCode") || "USED";
-    const coverImageUrl = (
-      fd.get("coverImageUrl") || fd.get("imageUrl") || ""
-    ).trim();
+    const coverImageUrl = (fd.get("coverImageUrl") || "").trim();
     const auctionType = fd.get("auctionType") || "FORWARD";
 
     const startingPrice = Number(fd.get("startingPrice"));
@@ -39,8 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : 1;
 
     const endTimeRaw = fd.get("endTime");
-    // send the raw "YYYY-MM-DDTHH:mm" local time string to the API
-    const endTime = endTimeRaw || null;
+    const endTime = endTimeRaw ? new Date(endTimeRaw).toISOString() : null;
 
     // --- shipping fields from the form (these are the names in sell.html) ---
     const shipCostStdRaw = fd.get("shipCostStd");
