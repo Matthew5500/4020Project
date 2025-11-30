@@ -1,46 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Aurora Auctions – Receipt</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../assets/css/styles.css" />
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Aurora Auctions – Receipt</title>
+    <link rel="stylesheet" href="../assets/css/styles.css" />
+  </head>
+  <body class="aa-body">
+    <!-- Header: same navbar as other pages -->
+    <header class="aa-nav">
+      <div class="aa-nav-left">
+        <a
+          href="../index.html"
+          class="aa-logo"
+          style="color: #4c8dff;"
+        >
+          Aurora Auctions
+        </a>
+      </div>
+      <nav class="aa-nav-right">
+        <a href="../index.html">Home</a>
+        <a href="browse.html">Browse</a>
+        <a href="sell.html">Sell</a>
+        <a href="checkout.html">Checkout</a>
+        <button id="nav-logout" class="aa-link-button hidden">
+          Logout
+        </button>
+      </nav>
+    </header>
 
-  <header class="aa-header">
-  <div class="aa-logo">
-    <!-- Clickable logo to go back to home -->
-    <a href="../index.html">Aurora Auctions</a>
-  </div>
-  <nav class="aa-nav">
-    <a href="../index.html">Home</a>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell</a>
-    <a href="checkout.html">Checkout</a>
-    <!-- AA.initNav() will show/hide this based on whether the user is logged in -->
-    <button id="nav-logout" class="aa-link-button">Logout</button>
-  </nav>
-</header>
+    <main class="aa-main">
+      <section class="aa-section">
+        <h1>Receipt &amp; Shipping Details</h1>
 
-<main class="aa-main">
-  <section class="aa-card">
-    <h2>Receipt & Shipping Details</h2>
+        <div class="aa-card">
+          <h2>Payment receipt</h2>
 
-    <!-- 🔹 This is where JS injects the receipt details -->
-    <div id="receipt-box"></div>
-    <p id="receipt-meta" class="aa-muted small"></p>
+          <p>
+            <strong>Item:</strong>
+            <span id="rcpt-item-title">(unknown item)</span>
+          </p>
 
-    <a href="browse.html" class="aa-btn secondary">Back to Catalogue</a>
-  </section>
-</main>
+          <p>
+            <strong>Winning price:</strong>
+            <span id="rcpt-winning-price">$0.00</span>
+          </p>
 
-<footer class="aa-footer">
-  <span>ITEC 4020 • Aurora Auctions</span>
-</footer>
+          <p>
+            <strong>Shipping (regular):</strong>
+            <span id="rcpt-ship-regular">$0.00</span>
+          </p>
 
-<!-- JS files -->
-<script src="../assets/js/common.js"></script>
-<script src="../assets/js/receipt.js"></script>
-</body>
+          <p>
+            <strong>Expedited shipping:</strong>
+            <span id="rcpt-ship-exp">$0.00</span>
+          </p>
+
+          <p>
+            <strong>Shipping method used:</strong>
+            <span id="rcpt-ship-method">Standard</span>
+          </p>
+
+          <p>
+            <strong>Total paid:</strong>
+            <span id="rcpt-total-paid">$0.00</span>
+          </p>
+
+          <p>
+            <strong>Paid on:</strong>
+            <span id="rcpt-paid-at">Not available</span>
+          </p>
+
+          <hr class="aa-divider" />
+
+          <h2>Shipping details</h2>
+
+          <p>
+            <strong>Estimated ship time (days):</strong>
+            <span id="rcpt-ship-days">Not specified</span>
+          </p>
+
+          <p class="aa-muted small" id="rcpt-note">
+            These values are based on the seller's settings when the item was
+            listed.
+          </p>
+
+          <button
+            id="rcpt-back-btn"
+            class="aa-btn secondary"
+            type="button"
+          >
+            Back to Catalogue
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="aa-footer">
+      <p>&copy; 2025 Aurora Auctions. All rights reserved.</p>
+    </footer>
+
+    <script src="../assets/js/common.js"></script>
+    <script src="../assets/js/receipt.js"></script>
+  </body>
 </html>
