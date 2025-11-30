@@ -6,22 +6,26 @@
     <link rel="stylesheet" href="../assets/css/styles.css" />
   </head>
   <body class="aa-body">
-    <!-- HEADER: same structure as other pages -->
-    <header class="aa-header">
-      <div class="aa-nav">
-        <div class="aa-nav-left">
-          <a href="../index.html" class="aa-logo">Aurora Auctions</a>
-        </div>
-        <nav class="aa-nav-right">
-          <a href="../index.html">Home</a>
-          <a href="browse.html">Browse</a>
-          <a href="sell.html">Sell</a>
-          <a href="checkout.html">Checkout</a>
-          <button id="nav-logout" class="aa-link-button hidden">
-            Logout
-          </button>
-        </nav>
+    <!-- HEADER: same structure/layout as other pages -->
+    <header class="aa-nav">
+      <div class="aa-nav-left">
+        <a
+          href="../index.html"
+          class="aa-logo"
+          style="color: #4c8dff;"
+        >
+          Aurora Auctions
+        </a>
       </div>
+      <nav class="aa-nav-right">
+        <a href="../index.html">Home</a>
+        <a href="browse.html">Browse</a>
+        <a href="sell.html">Sell</a>
+        <a href="checkout.html">Checkout</a>
+        <button id="nav-logout" class="aa-link-button hidden">
+          Logout
+        </button>
+      </nav>
     </header>
 
     <main class="aa-main">
@@ -72,9 +76,10 @@
               <span id="pay-total">$0.00</span>
             </p>
 
-            <p id="pay-shipping-time" class="aa-muted small">
-              The item will be shipped in a few days (shipping time not
-              specified).
+            <!-- NEW: proper heading for ship time -->
+            <p>
+              <strong>Estimated ship time (days):</strong>
+              <span id="pay-shipping-time">Not specified</span>
             </p>
           </div>
 
@@ -91,7 +96,7 @@
             <h3>Credit / Debit Card</h3>
 
             <form id="pay-form" class="aa-form">
-              <!-- Card number: stack label & input vertically, closer together -->
+              <!-- Card number: label & input stacked with tight spacing -->
               <div
                 class="aa-form-row"
                 style="display: flex; flex-direction: column; gap: 0.35rem;"
