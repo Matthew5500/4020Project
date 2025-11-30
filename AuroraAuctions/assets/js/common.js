@@ -230,6 +230,19 @@ window.AA = (function () {
     }, 4000);
   }
 
+  //Shipping Overrides Helper
+  AA.getShippingOverride = function (itemId) {
+    try {
+      const raw = localStorage.getItem("aaShippingOverrides");
+      if (!raw) return null;
+      const overrides = JSON.parse(raw);
+      return overrides[String(itemId)] || null;
+    } catch (e) {
+      console.warn("Could not read shipping overrides", e);
+      return null;
+    }
+  };
+
   // ----------------- public API -----------------
 
   return {
