@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="../assets/css/styles.css" />
   </head>
   <body class="aa-body">
+    <!-- Site header (same structure as other pages) -->
     <header class="aa-nav">
       <div class="aa-nav-left">
         <a href="../index.html" class="aa-logo">Aurora Auctions</a>
@@ -24,11 +25,12 @@
         <h1>Payment</h1>
 
         <div class="aa-grid aa-grid-2">
-          <!-- Order summary -->
+          <!-- Order summary card -->
           <div class="aa-card">
             <h2>Order summary</h2>
 
             <p><strong>Item:</strong> <span id="pay-item-title">–</span></p>
+
             <p>
               <strong>Winning price:</strong>
               <span id="pay-winning-price">$0.00</span>
@@ -39,28 +41,26 @@
               <span id="pay-ship-regular">$0.00</span>
             </p>
 
-            <!-- New, cleaner expedited row -->
+            <!-- Expedited shipping row: amount + [checkbox] Use expedited -->
             <p>
               <strong>Expedited shipping:</strong>
               <span id="pay-exp-price">$0.00</span>
-              <label
-                for="pay-expedited"
+              <span
                 id="pay-expedited-label"
                 style="
                   margin-left: 1rem;
                   display: inline-flex;
                   align-items: center;
                   gap: 0.35rem;
-                  cursor: pointer;
                 "
               >
-                <span class="aa-muted small">Use expedited</span>
                 <input
                   type="checkbox"
                   id="pay-expedited"
                   style="width: 16px; height: 16px"
                 />
-              </label>
+                <span class="aa-muted small">Use expedited</span>
+              </span>
             </p>
 
             <p>
@@ -74,19 +74,20 @@
             </p>
           </div>
 
-          <!-- Billing & payment form -->
+          <!-- Billing & payment form card -->
           <div class="aa-card">
             <h2>Billing &amp; Shipping</h2>
 
             <p><strong>User:</strong> <span id="pay-user-name">–</span></p>
             <p>
               <strong>Address:</strong>
-              <span id="pay-user-address">No address on file.</span>
+              <span id="pay-user-address">No address on file (from Sign-Up).</span>
             </p>
 
             <h3>Credit / Debit Card</h3>
 
             <form id="pay-form" class="aa-form">
+              <!-- Card number: max 16 digits -->
               <div class="aa-form-row">
                 <label for="card-number">Card number</label>
                 <input
@@ -96,9 +97,13 @@
                   autocomplete="cc-number"
                   placeholder="1234 5678 9012 3456"
                   required
+                  maxlength="16"
+                  pattern="\d{13,16}"
+                  title="Card number should be 13 to 16 digits"
                 />
               </div>
 
+              <!-- Name on card -->
               <div class="aa-form-row">
                 <label for="card-name">Name on card</label>
                 <input
@@ -110,6 +115,7 @@
               </div>
 
               <div class="aa-form-row aa-form-row-inline">
+                <!-- Expiry MM/YY -->
                 <div>
                   <label for="card-expiry">Expiry (MM/YY)</label>
                   <input
@@ -119,8 +125,13 @@
                     autocomplete="cc-exp"
                     placeholder="08/28"
                     required
+                    maxlength="5"
+                    pattern="\d{2}/\d{2}"
+                    title="Use MM/YY format, e.g. 08/28"
                   />
                 </div>
+
+                <!-- CVV: max 4 digits -->
                 <div>
                   <label for="card-cvv">CVV</label>
                   <input
@@ -130,6 +141,9 @@
                     autocomplete="cc-csc"
                     placeholder="123"
                     required
+                    maxlength="4"
+                    pattern="\d{3,4}"
+                    title="CVV must be 3 or 4 digits"
                   />
                 </div>
               </div>
@@ -144,6 +158,11 @@
         </div>
       </section>
     </main>
+
+    <!-- Site footer to match other pages -->
+    <footer class="aa-footer">
+      <p>&copy; 2025 Aurora Auctions. All rights reserved.</p>
+    </footer>
 
     <script src="../assets/js/common.js"></script>
     <script src="../assets/js/pay.js"></script>
