@@ -48,76 +48,36 @@ document.addEventListener("DOMContentLoaded", () => {
   const elCardExpiry = document.getElementById("card-expiry");
   const elCardCvv = document.getElementById("card-cvv");
 
-  // ----- base shipping values from checkout -----
-  let baseShipping = Number(checkout.baseShipping || 0);
-  let expShipping = Number(checkout.expShipping || 0);
-  let shippingDays =
-    typeof checkout.shippingDays === "number"
-      ? checkout.shippingDays
-      : null;
-
-  // If we created overrides when listing the item, apply them
-  try {
-    const rawOverrides = localStorage.getItem("aaShippingOverrides");
-    if (rawOverrides) {
-      const overrides = JSON.parse(rawOverrides);
-      const override = overrides[String(checkout.itemId)];
-      if (override) {
-        if (override.baseShipping != null) {
-          baseShipping = Number(override.baseShipping);
-        }
-        if (override.expShipping != null) {
-          expShipping = Number(override.expShipping);
-        }
-        if (override.shippingDays != null) {
-          shippingDays = override.shippingDays;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Could not read shipping overrides:", e);
-  }
-
-  // ----- populate UI -----
-  if (elTitle) elTitle.textContent = checkout.title || "Unknown item";
-
+  // ----- core values -----
   const winningPrice =
     Number(checkout.winningPrice ?? checkout.finalPrice ?? 0);
 
-  if (elPrice) elPrice.textContent = AA.formatMoney(winningPrice);
-  if (elShipRegular)
-    elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
-  if (elExpPrice)
-    elExpPrice.textContent = AA.formatMoney(expShipping || 0);
+  let baseShipping = 0;
+  let expShipping = 0;
+  let shippingDays = null;
+  let hasExp = false;
 
-  if (elShipTime) {
-    if (typeof shippingDays === "number") {
-      elShipTime.textContent = `${shippingDays} day(s)`;
-    } else {
-      elShipTime.textContent = "Not specified";
+  // Read any overrides stored when the item was created on Sell page
+  function applyShippingOverrides() {
+    try {
+      const rawOverrides = localStorage.getItem("aaShippingOverrides");
+      if (!rawOverrides) return;
+      const overrides = JSON.parse(rawOverrides);
+      const override = overrides[String(checkout.itemId)];
+      if (!override) return;
+
+      if (override.baseShipping != null) {
+        baseShipping = Number(override.baseShipping);
+      }
+      if (override.expShipping != null) {
+        expShipping = Number(override.expShipping);
+      }
+      if (override.shippingDays != null) {
+        shippingDays = Number(override.shippingDays);
+      }
+    } catch (e) {
+      console.warn("Could not read shipping overrides:", e);
     }
-  }
-
-  if (elUserName) {
-    const nameParts = [];
-    if (user.firstName) nameParts.push(user.firstName);
-    if (user.lastName) nameParts.push(user.lastName);
-    const full =
-      nameParts.join(" ") || user.username || `user #${user.userId}`;
-    elUserName.textContent = full;
-  }
-
-  if (elUserAddress) {
-    elUserAddress.textContent = "No address on file (from Sign-Up).";
-  }
-
-  const hasExp = expShipping > 0;
-  if (elExpCheckbox) {
-    elExpCheckbox.disabled = !hasExp;
-    elExpCheckbox.checked = hasExp && !!checkout.expeditedSelected;
-  }
-  if (elExpLabel && !hasExp) {
-    elExpLabel.classList.add("aa-muted");
   }
 
   function recalcTotal() {
@@ -128,6 +88,104 @@ document.addEventListener("DOMContentLoaded", () => {
     if (elTotal) elTotal.textContent = AA.formatMoney(total);
   }
 
+  function populateUI() {
+    if (elTitle) elTitle.textContent = checkout.title || "Unknown item";
+
+    if (elPrice) elPrice.textContent = AA.formatMoney(winningPrice);
+    if (elShipRegular)
+      elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
+    if (elExpPrice)
+      elExpPrice.textContent = AA.formatMoney(expShipping || 0);
+
+    if (elShipTime) {
+      if (typeof shippingDays === "number" && !Number.isNaN(shippingDays)) {
+        elShipTime.textContent = `${shippingDays} day(s)`;
+      } else {
+        elShipTime.textContent = "Not specified";
+      }
+    }
+
+    if (elUserName) {
+      const nameParts = [];
+      if (user.firstName) nameParts.push(user.firstName);
+      if (user.lastName) nameParts.push(user.lastName);
+      const full =
+        nameParts.join(" ") || user.username || `user #${user.userId}`;
+      elUserName.textContent = full;
+    }
+
+    if (elUserAddress) {
+      elUserAddress.textContent = "No address on file (from Sign-Up).";
+    }
+
+    hasExp = expShipping > 0;
+
+    if (elExpCheckbox) {
+      elExpCheckbox.disabled = !hasExp;
+      elExpCheckbox.checked = hasExp && !!checkout.expeditedSelected;
+    }
+    if (elExpLabel) {
+      if (!hasExp) {
+        elExpLabel.classList.add("aa-muted");
+      } else {
+        elExpLabel.classList.remove("aa-muted");
+      }
+    }
+
+    recalcTotal();
+  }
+
+  // ----- initialise shipping values -----
+  (async () => {
+    // Start with whatever came from checkout
+    baseShipping = Number(checkout.baseShipping || 0);
+    expShipping = Number(checkout.expShipping || 0);
+    shippingDays =
+      typeof checkout.shippingDays === "number"
+        ? checkout.shippingDays
+        : null;
+
+    // 🔹 Try to pull shipping from backend item (DB)
+    try {
+      const item = await AA.api(`/items/${checkout.itemId}`);
+      if (item) {
+        const std =
+          item.shipCostStd ??
+          item.ship_cost_std ??
+          item.shippingCost ??
+          item.shipping_cost;
+        const exp =
+          item.shipCostExp ??
+          item.ship_cost_exp ??
+          item.expeditedShippingCost ??
+          item.expedited_shipping_cost;
+        const days =
+          item.shipDays ??
+          item.ship_days ??
+          item.shippingDays ??
+          item.shipping_time_days;
+
+        if (std != null && !Number.isNaN(Number(std))) {
+          baseShipping = Number(std);
+        }
+        if (exp != null && !Number.isNaN(Number(exp))) {
+          expShipping = Number(exp);
+        }
+        if (days != null && !Number.isNaN(Number(days))) {
+          shippingDays = Number(days);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load item for shipping info:", e);
+    }
+
+    // 🔹 Then apply any client-side overrides from Sell page
+    applyShippingOverrides();
+
+    // Finally show everything
+    populateUI();
+  })();
+
   if (elExpCheckbox) {
     elExpCheckbox.addEventListener("change", () => {
       checkout.expeditedSelected = !!elExpCheckbox.checked;
@@ -135,8 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
       recalcTotal();
     });
   }
-
-  recalcTotal();
 
   // ----- fake payment submission -----
   if (elForm) {
