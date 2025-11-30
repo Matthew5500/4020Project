@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="../assets/css/styles.css" />
 </head>
 <body>
-
   <header class="aa-header">
     <div class="aa-logo">
       <a href="../index.html">Aurora Auctions</a>
@@ -22,99 +21,83 @@
   </header>
 
   <main class="aa-main">
-    <section class="aa-card aa-card-wide">
-      <h2>Payment</h2>
+    <section class="aa-section">
+      <div class="aa-page-title">
+        <h1>Payment</h1>
+      </div>
 
       <div class="aa-grid-2">
-        <!-- LEFT: Order summary & shipping selection -->
-        <div>
-          <h3>Order summary</h3>
-          <p><strong>Item:</strong> <span id="pay-item-title"></span></p>
-          <p><strong>Winning price:</strong> <span id="pay-winning-price"></span></p>
+        <!-- Left: order summary -->
+        <div class="aa-card">
+          <h2>Order summary</h2>
 
-          <!-- Regular shipping -->
+          <p><strong>Item:</strong> <span id="pay-item-title">–</span></p>
+          <p><strong>Winning price:</strong> <span id="pay-winning-price">$0.00</span></p>
+
           <p>
             <strong id="pay-ship-regular-label">Shipping (regular):</strong>
-            <span id="pay-ship-regular"></span>
+            <span id="pay-ship-regular">$0.00</span>
           </p>
 
-          <!-- Expedited shipping row: checkbox on left, text on right -->
-          <div id="pay-expedited-row" style="margin-top:0.5rem;">
-            <label
-              for="pay-expedited"
-              style="display:flex;align-items:center;gap:0.5rem;"
-            >
-              <input type="checkbox" id="pay-expedited" />
-              <span>
-                <strong id="pay-expedited-label">Expedited shipping:</strong>
-                <span id="pay-expedited-amount"></span>
+          <div class="aa-form-row">
+            <label for="pay-expedited"
+              style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input
+                type="checkbox"
+                id="pay-expedited"
+                style="width:16px; height:16px;"
+              />
+              <span id="pay-expedited-label" class="aa-muted">
+                <strong>Expedited shipping:</strong>
+                <span id="pay-exp-price">$0.00</span>
               </span>
             </label>
           </div>
 
-          <!-- Total -->
-          <p class="aa-summary-row">
-            <span>Total (item + shipping):</span>
-            <span id="pay-total"></span>
+          <p>
+            <strong>Total (item + shipping):</strong>
+            <span id="pay-total">$0.00</span>
           </p>
 
-          <p id="pay-shipping-time" class="aa-muted small"></p>
+          <p id="pay-shipping-time" class="aa-muted small">
+            The item will be shipped in a few days (shipping time not specified).
+          </p>
         </div>
 
-        <!-- RIGHT: Billing & card details -->
-        <div>
-          <h3>Billing & Shipping</h3>
-          <div class="aa-box">
-            <p><strong>User:</strong> <span id="pay-user-name"></span></p>
-            <p>
-              <strong>Address:</strong><br />
-              <span id="pay-user-address"></span>
-            </p>
-          </div>
+        <!-- Right: billing + card form -->
+        <div class="aa-card">
+          <h2>Billing &amp; Shipping</h2>
+
+          <p><strong>User:</strong> <span id="pay-user-name">–</span></p>
+          <p><strong>Address:</strong> <span id="pay-user-address">–</span></p>
 
           <h3>Credit / Debit Card</h3>
+
           <form id="pay-form" class="aa-form">
             <label>
               Card number
-              <input
-                type="text"
-                id="card-number"
-                maxlength="19"
-                inputmode="numeric"
-                required
-              />
-            </label>
-            <label>
-              Name on card
-              <input type="text" id="card-name" required />
+              <input type="text" id="card-number" autocomplete="cc-number" />
             </label>
 
-            <div class="aa-grid-2">
+            <label>
+              Name on card
+              <input type="text" id="card-name" autocomplete="cc-name" />
+            </label>
+
+            <div class="aa-form-row">
               <label>
                 Expiry (MM/YY)
-                <input
-                  type="text"
-                  id="card-expiry"
-                  placeholder="MM/YY"
-                  maxlength="5"
-                  required
-                />
+                <input type="text" id="card-expiry" placeholder="MM/YY" />
               </label>
               <label>
                 CVV
-                <input
-                  type="password"
-                  id="card-cvv"
-                  maxlength="4"
-                  inputmode="numeric"
-                  required
-                />
+                <input type="password" id="card-cvv" />
               </label>
             </div>
 
-            <p id="pay-error" class="aa-error small"></p>
+            <p id="pay-error" class="aa-error"></p>
 
-            <button type="submit" class="aa-btn primary">Submit payment</button>
+            <button type="submit" class="aa-btn primary">Pay Now</button>
             <a href="browse.html" class="aa-btn secondary">Cancel</a>
           </form>
         </div>
