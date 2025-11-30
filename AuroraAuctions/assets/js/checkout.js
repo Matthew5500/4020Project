@@ -1,127 +1,149 @@
 // assets/js/checkout.js
-// Checkout page: show only ended items that the current user has WON and NOT yet PAID.
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- 1. Get logged-in user ---
-  let user = null;
-  try {
-    user =
-      JSON.parse(localStorage.getItem("user")) ||
-      JSON.parse(sessionStorage.getItem("user"));
-  } catch (e) {
-    console.error("Failed to parse user from storage", e);
-  }
+  const user = AA.requireLogin();
+  if (!user) return;
 
-  if (!user || !user.userId) {
-    // No user → send back to login/home
-    window.location.href = "index.html";
-    return;
-  }
+  AA.initNav();
 
-  // --- 2. Grab DOM elements (be lenient if some are missing) ---
-  const listContainer =
-    document.getElementById("checkout-items") ||
-    document.querySelector("[data-checkout-items]");
+  const tbody = document.getElementById("checkout-tbody");
 
-  const emptyMessage =
-    document.getElementById("checkout-empty") ||
-    document.querySelector("[data-checkout-empty]");
-
-  const errorBox =
-    document.getElementById("checkout-error") ||
-    document.querySelector("[data-checkout-error]");
-
-  if (!listContainer) {
-    console.error(
-      "Checkout: cannot find container with id 'checkout-items' or [data-checkout-items]"
-    );
-    return;
-  }
-
-  // Helper to show/hide empty state
-  function showEmptyState(show) {
-    if (!emptyMessage) return;
-    emptyMessage.style.display = show ? "block" : "none";
-  }
-
-  function showError(msg) {
-    console.error(msg);
-    if (errorBox) {
-      errorBox.textContent = msg;
-      errorBox.style.display = "block";
-    } else {
-      alert(msg);
+  // helper from item.js
+  function firstField(obj, names, fallback = null) {
+    for (const n of names) {
+      if (obj[n] !== undefined && obj[n] !== null) return obj[n];
     }
+    return fallback;
   }
 
-  // --- 3. Render a single item row/card ---
-  function renderItem(item) {
-    const row = document.createElement("div");
-    row.className = "checkout-item-row";
-
-    // Simple layout: title + price + "Pay" button
-    row.innerHTML = `
-      <div class="checkout-item-main">
-        <div class="checkout-item-title">${item.title || "(no title)"}</div>
-        <div class="checkout-item-meta">
-          <span>Item ID: ${item.itemId}</span>
-          <span>Type: ${item.auctionType}</span>
-        </div>
-      </div>
-      <div class="checkout-item-price">
-        <span class="label">Amount due:</span>
-        <span class="value">$${(item.currentPrice ?? item.startingPrice ?? 0).toFixed(2)}</span>
-      </div>
-      <div class="checkout-item-action">
-        <a class="btn btn-primary" href="pay.html?itemId=${item.itemId}">
-          Pay now
-        </a>
-      </div>
-    `;
-
-    return row;
-  }
-
-  // --- 4. Load items from API and filter ---
   async function loadCheckoutItems() {
-    showEmptyState(false);
-    listContainer.innerHTML = "";
+    tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
 
     try {
-      // Uses AA.api helper from common.js
-      const items = await AA.api("/items/ended");
+      const ended = await AA.api("/items/ended");
 
-      if (!Array.isArray(items)) {
-        showError("Unexpected response from /api/items/ended");
+      // 🔧 FIX: only show items the user won AND that are still UNPAID
+      const myWins = ended.filter((i) => {
+        const paymentStatus = i.paymentStatus || i.payment_status || "UNPAID";
+        return i.currentWinnerId === user.userId && paymentStatus !== "PAID";
+      });
+
+      if (!myWins.length) {
+        tbody.innerHTML =
+          "<tr><td colspan='6' class='aa-muted'>You have not won any auctions yet, or all of your won auctions are already paid.</td></tr>";
         return;
       }
 
-      // Core fix:
-      // Only show items:
-      //  - winner is the current user
-      //  - auction has ended (already guaranteed by /ended)
-      //  - paymentStatus is UNPAID
-      const myUnpaidWins = items.filter(
-        (item) =>
-          item.currentWinnerId === user.userId &&
-          item.paymentStatus === "UNPAID"
-      );
+      tbody.innerHTML = "";
 
-      if (myUnpaidWins.length === 0) {
-        showEmptyState(true);
-        return;
-      }
+      myWins.forEach((item) => {
+        const id =
+          item.itemId ?? item.id ?? item.item_id ?? item.auctionItemId;
 
-      myUnpaidWins.forEach((item) => {
-        const row = renderItem(item);
-        listContainer.appendChild(row);
+        const winningPrice =
+          firstField(item, ["currentPrice", "finalPrice", "price"]) || 0;
+
+        const baseShipping = firstField(
+          item,
+          [
+            // exact DB / typical entity names
+            "ship_cost_std",
+            "shipCostStd",
+            // older generic guesses (keep as fallbacks)
+            "shippingCost",
+            "shipping_cost",
+            "shipping",
+            "shippingRegular",
+            "shipping_regular",
+            "baseShipping",
+          ],
+          0
+        );
+
+        const expShipping = firstField(
+          item,
+          [
+            // exact DB / typical entity names
+            "ship_cost_exp",
+            "shipCostExp",
+            // generic fallbacks
+            "expeditedShippingCost",
+            "expedited_shipping_cost",
+            "expeditedShipping",
+            "shippingExpedited",
+            "shipping_expedited",
+          ],
+          0
+        );
+
+        const shippingDays = firstField(
+          item,
+          [
+            "ship_days", // DB column
+            "shipDays", // typical entity name
+            "shippingDays",
+            "shipping_time_days",
+          ],
+          null
+        );
+
+        const paymentStatus =
+          item.paymentStatus || item.payment_status || "UNPAID";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.title || "(no title)"}</td>
+          <td>${AA.formatMoney(winningPrice)}</td>
+          <td>${AA.formatMoney(baseShipping)}</td>
+          <td>${paymentStatus}</td>
+          <td>${AA.formatDateTime(item.endTime)}</td>
+          <td></td>
+        `;
+
+        const actionCell = tr.lastElementChild;
+
+        if (paymentStatus === "PAID") {
+          // In theory we filtered these OUT above, but keep this
+          // just in case the API changes in the future.
+          actionCell.innerHTML =
+            "<span class='aa-tag success'>Paid</span>";
+        } else {
+          const btn = document.createElement("button");
+          btn.className = "aa-btn primary small";
+          btn.textContent = "Pay";
+          btn.addEventListener("click", () => {
+            const checkout = {
+              itemId: id,
+              title: item.title,
+              winningPrice,
+              baseShipping,
+              expShipping,
+              shippingDays,
+              expeditedSelected: false,
+            };
+            sessionStorage.setItem(
+              "checkout",
+              JSON.stringify(checkout)
+            );
+            window.location.href = "pay.html";
+          });
+          actionCell.appendChild(btn);
+        }
+
+        tbody.appendChild(tr);
       });
     } catch (err) {
-      console.error(err);
-      showError("Failed to load your items to pay. Please try again.");
+      console.error("Checkout load failed:", err);
+      tbody.innerHTML =
+        "<tr><td colspan='6' class='aa-muted'>Failed to load checkout items.</td></tr>";
+      if (AA.showToast) {
+        AA.showToast(
+          "Failed to load checkout items: " + (err.message || "Error"),
+          "error"
+        );
+      }
     }
   }
 
-  // --- 5. Kick everything off ---
   loadCheckoutItems();
 });
