@@ -20,7 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const description = (fd.get("description") || "").trim();
     const category = fd.get("category") || "";
     const conditionCode = fd.get("conditionCode") || "USED";
-    const coverImageUrl = (fd.get("coverImageUrl") || "").trim();
+    const coverImageUrl = (
+      fd.get("coverImageUrl") || fd.get("imageUrl") || ""
+    ).trim();
     const auctionType = fd.get("auctionType") || "FORWARD";
 
     const startingPrice = Number(fd.get("startingPrice"));
