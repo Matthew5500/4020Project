@@ -37,7 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
         : 1;
 
     const endTimeRaw = fd.get("endTime");
-    const endTime = endTimeRaw ? new Date(endTimeRaw).toISOString() : null;
+    // send the raw "YYYY-MM-DDTHH:mm" local time string to the API
+    const endTime = endTimeRaw || null;
 
     // --- shipping fields from the form (these are the names in sell.html) ---
     const shipCostStdRaw = fd.get("shipCostStd");
