@@ -1,4 +1,5 @@
 // assets/js/checkout.js
+// Shows auctions the current user has won and still needs to pay for.
 
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
@@ -16,21 +17,53 @@ document.addEventListener("DOMContentLoaded", () => {
     return fallback;
   }
 
+  function loadPaidIds() {
+    try {
+      const raw = localStorage.getItem("aaPaidItems");
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      console.warn("Could not parse aaPaidItems:", e);
+      return [];
+    }
+  }
+
   async function loadCheckoutItems() {
+    if (!tbody) return;
     tbody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
 
     try {
       const ended = await AA.api("/items/ended");
+      if (!Array.isArray(ended)) {
+        tbody.innerHTML =
+          "<tr><td colspan='6' class='aa-muted'>Unexpected response from server.</td></tr>";
+        return;
+      }
 
-      // 🔧 FIX: only show items the user won AND that are still UNPAID
-      const myWins = ended.filter((i) => {
-        const paymentStatus = i.paymentStatus || i.payment_status || "UNPAID";
-        return i.currentWinnerId === user.userId && paymentStatus !== "PAID";
+      const paidIds = loadPaidIds();
+
+      // Only items:
+      // - where this user is the current winner
+      // - and whose ID is NOT in aaPaidItems
+      const myWins = ended.filter((item) => {
+        const winnerId =
+          item.currentWinnerId ??
+          item.current_winner_id ??
+          item.winnerId ??
+          item.winner_id;
+
+        const id =
+          item.itemId ?? item.id ?? item.item_id ?? item.auctionItemId;
+
+        if (winnerId !== user.userId) return false;
+        if (id == null) return true; // if no id, don't hide it
+        return !paidIds.includes(id);
       });
 
       if (!myWins.length) {
         tbody.innerHTML =
-          "<tr><td colspan='6' class='aa-muted'>You have not won any auctions yet, or all of your won auctions are already paid.</td></tr>";
+          "<tr><td colspan='6' class='aa-muted'>You have no unpaid won auctions.</td></tr>";
         return;
       }
 
@@ -46,10 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const baseShipping = firstField(
           item,
           [
-            // exact DB / typical entity names
             "ship_cost_std",
             "shipCostStd",
-            // older generic guesses (keep as fallbacks)
             "shippingCost",
             "shipping_cost",
             "shipping",
@@ -63,10 +94,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const expShipping = firstField(
           item,
           [
-            // exact DB / typical entity names
             "ship_cost_exp",
             "shipCostExp",
-            // generic fallbacks
             "expeditedShippingCost",
             "expedited_shipping_cost",
             "expeditedShipping",
@@ -78,12 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const shippingDays = firstField(
           item,
-          [
-            "ship_days", // DB column
-            "shipDays", // typical entity name
-            "shippingDays",
-            "shipping_time_days",
-          ],
+          ["ship_days", "shipDays", "shippingDays", "shipping_time_days"],
           null
         );
 
@@ -102,33 +126,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const actionCell = tr.lastElementChild;
 
-        if (paymentStatus === "PAID") {
-          // In theory we filtered these OUT above, but keep this
-          // just in case the API changes in the future.
-          actionCell.innerHTML =
-            "<span class='aa-tag success'>Paid</span>";
-        } else {
-          const btn = document.createElement("button");
-          btn.className = "aa-btn primary small";
-          btn.textContent = "Pay";
-          btn.addEventListener("click", () => {
-            const checkout = {
-              itemId: id,
-              title: item.title,
-              winningPrice,
-              baseShipping,
-              expShipping,
-              shippingDays,
-              expeditedSelected: false,
-            };
-            sessionStorage.setItem(
-              "checkout",
-              JSON.stringify(checkout)
-            );
-            window.location.href = "pay.html";
-          });
-          actionCell.appendChild(btn);
-        }
+        const btn = document.createElement("button");
+        btn.className = "aa-btn primary small";
+        btn.textContent = "Pay";
+        btn.addEventListener("click", () => {
+          const checkout = {
+            itemId: id,
+            title: item.title,
+            winningPrice,
+            baseShipping,
+            expShipping,
+            shippingDays,
+            expeditedSelected: false,
+          };
+          sessionStorage.setItem("checkout", JSON.stringify(checkout));
+          window.location.href = "pay.html";
+        });
+        actionCell.appendChild(btn);
 
         tbody.appendChild(tr);
       });
