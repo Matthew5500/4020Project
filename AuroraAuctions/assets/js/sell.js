@@ -1,84 +1,106 @@
 // assets/js/sell.js
+// Handles UC7: create a new auction (Forward / Dutch) from the Sell page.
 
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
-  if (!user) return;
+  if (!user) {
+    return; // requireLogin will redirect
+  }
 
   AA.initNav();
 
   const form = document.getElementById("sell-form");
-  const msg = document.getElementById("sell-message");
+  if (!form) return;
 
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    msg.textContent = "";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-    const fd = new FormData(form);
+    const formData = new FormData(form);
 
-    // --- read basic fields ---
-    const title = (fd.get("title") || "").trim();
-    const description = (fd.get("description") || "").trim();
-    const category = fd.get("category") || "";
-    const conditionCode = fd.get("conditionCode") || "USED";
-    const coverImageUrl = (fd.get("coverImageUrl") || "").trim();
-    const auctionType = fd.get("auctionType") || "FORWARD";
+    // ----- Read & normalize form fields -----
+    const title = (formData.get("title") || "").trim();
+    const description = (formData.get("description") || "").trim();
+    const category = (formData.get("category") || "").trim();
 
-    const startingPrice = Number(fd.get("startingPrice"));
-    const minimumPriceRaw = fd.get("minimumPrice");
-    const minimumPrice =
-      minimumPriceRaw !== null && minimumPriceRaw !== ""
-        ? Number(minimumPriceRaw)
-        : null;
+    // In the HTML this is usually named conditionCode; fall back to "Used".
+    const conditionCode =
+      (formData.get("conditionCode") || formData.get("condition") || "USED").toString().trim();
 
-    const quantityRaw = fd.get("quantity");
-    const quantity =
-      quantityRaw !== null && quantityRaw !== ""
-        ? Number(quantityRaw)
-        : 1;
+    // Image URL (optional)
+    const coverImageUrl =
+      (formData.get("coverImageUrl") || formData.get("imageUrl") || "").toString().trim();
 
-    const endTimeRaw = fd.get("endTime");
-    const endTime = endTimeRaw ? new Date(endTimeRaw).toISOString() : null;
+    const auctionType =
+      (formData.get("auctionType") || "FORWARD").toString().trim().toUpperCase();
 
-    // --- shipping fields from the form (these are the names in sell.html) ---
-    const shipCostStdRaw = fd.get("shipCostStd");
-    const shipCostExpRaw = fd.get("shipCostExp");
-    const shipDaysRaw = fd.get("shipDays");
+    // datetime-local value like "2025-12-01T22:00"
+    const endTimeRaw =
+      (formData.get("endTime") ||
+        formData.get("auctionEndTime") ||
+        "").toString().trim();
 
-    const shipCostStd =
-      shipCostStdRaw !== null && shipCostStdRaw !== ""
-        ? Number(shipCostStdRaw)
-        : 0;
+    const startingPriceRaw = (formData.get("startingPrice") || "").toString().trim();
+    const minimumPriceRaw =
+      (formData.get("minimumPrice") ||
+        formData.get("reservePrice") ||
+        "").toString().trim();
 
-    const shipCostExp =
-      shipCostExpRaw !== null && shipCostExpRaw !== ""
-        ? Number(shipCostExpRaw)
-        : 0;
+    const quantityRaw = (formData.get("quantity") || "1").toString().trim();
 
-    const shipDays =
-      shipDaysRaw !== null && shipDaysRaw !== ""
-        ? Number(shipDaysRaw)
-        : null;
+    const shipStdRaw = (formData.get("shipCostStd") || "").toString().trim();
+    const shipExpRaw = (formData.get("shipCostExp") || "").toString().trim();
+    const shipDaysRaw = (formData.get("shipDays") || "").toString().trim();
 
-    // --- very light validation (keep it simple) ---
-    if (!title || Number.isNaN(startingPrice)) {
-      msg.textContent =
-        "Please provide at least a title and a valid starting price.";
+    // ----- Basic validation -----
+    if (!title) {
+      AA.showToast("Missing title", "Please enter a title for the item.", "error");
       return;
     }
 
+    const startingPrice = Number(startingPriceRaw);
+    if (!Number.isFinite(startingPrice) || startingPrice <= 0) {
+      AA.showToast("Invalid starting price", "Please enter a positive number.", "error");
+      return;
+    }
+
+    let minimumPrice = null;
+    if (minimumPriceRaw) {
+      const minNum = Number(minimumPriceRaw);
+      if (!Number.isFinite(minNum) || minNum < 0) {
+        AA.showToast(
+          "Invalid minimum price",
+          "Reserve / minimum price must be a non-negative number.",
+          "error"
+        );
+        return;
+      }
+      minimumPrice = minNum;
+    }
+
+    const quantity = parseInt(quantityRaw, 10) || 1;
+
+    const shipCostStd = Number(shipStdRaw || "0") || 0;
+    const shipCostExp = Number(shipExpRaw || "0") || 0;
+    const shipDays = shipDaysRaw ? parseInt(shipDaysRaw, 10) || 0 : 0;
+
+    // ----- Build payload for /api/items -----
+    // Only fields defined in ItemRequest are required by the backend.
+    // Extra fields (conditionCode, shipping, etc.) are safely ignored
+    // by the mid-tier but we keep them in case you extend ItemRequest later.
     const payload = {
       sellerId: user.userId,
       title,
       description,
-      category,
+      category: category || null,
       conditionCode,
       coverImageUrl: coverImageUrl || null,
       auctionType,
       startingPrice,
       minimumPrice,
-      endTime,
+      endTime: endTimeRaw || null,
       quantity,
-      // We still send shipping to the backend even if it ignores it.
+      // These are not used by the current mid-tier ItemRequest but are
+      // harmless extras that match the DB schema and front-end needs.
       shipCostStd,
       shipCostExp,
       shipDays,
@@ -90,35 +112,47 @@ document.addEventListener("DOMContentLoaded", () => {
         body: payload,
       });
 
-      // --- FRONT-END ONLY: remember shipping for this itemId ---
-      try {
-        const raw = localStorage.getItem("aaShippingOverrides");
-        let overrides = {};
-        if (raw) {
-          overrides = JSON.parse(raw);
+      // The mid-tier returns ItemResponse with property "id" (not "itemId").
+      const createdId = created.id ?? created.itemId;
+
+      // ----- Save shipping overrides in localStorage -----
+      // pay.js and checkout.js read from "aaShippingOverrides" to show
+      // shipping costs and estimated ship time on the Payment and Receipt pages.
+      // Previously this used created.itemId, which is undefined; that meant
+      // overrides were stored under the key "undefined" and were never found.
+      if (createdId != null) {
+        try {
+          const raw = localStorage.getItem("aaShippingOverrides") || "{}";
+          const overrides = JSON.parse(raw);
+
+          overrides[String(createdId)] = {
+            baseShipping: shipCostStd,
+            expShipping: shipCostExp,
+            shippingDays: shipDays,
+          };
+
+          localStorage.setItem("aaShippingOverrides", JSON.stringify(overrides));
+        } catch (err) {
+          console.warn("Failed to store shipping overrides:", err);
         }
-
-        overrides[String(created.itemId)] = {
-          baseShipping: shipCostStd,
-          expShipping: shipCostExp,
-          shippingDays: shipDays,
-        };
-
-        localStorage.setItem(
-          "aaShippingOverrides",
-          JSON.stringify(overrides)
-        );
-      } catch (e) {
-        console.warn("Could not store shipping overrides:", e);
       }
 
-      msg.textContent = "Auction created successfully.";
-      window.location.href = `item.html?id=${encodeURIComponent(
-        created.itemId
-      )}`;
+      AA.showToast(
+        "Auction created",
+        "Your item has been listed successfully. Redirecting to the item page…",
+        "success"
+      );
+
+      // Redirect to the new item's page
+      if (createdId != null) {
+        window.location.href = `item.html?id=${encodeURIComponent(createdId)}`;
+      } else {
+        // Fallback: go to Browse if we somehow didn't get an id.
+        window.location.href = "browse.html";
+      }
     } catch (err) {
-      console.error(err);
-      msg.textContent = "Creation failed: " + (err.message || "Bad request");
+      console.error("Create item failed:", err);
+      AA.showToast("Failed to create auction", err.message || String(err), "error");
     }
   });
 });
