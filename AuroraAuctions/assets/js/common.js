@@ -109,15 +109,19 @@ window.AA = (function () {
    * Place your image at:
    *   AuroraAuctions/assets/img/item-placeholder.png
    */
-  function getItemImageUrl(item) {
-    if (item && item.coverImageUrl) {
-      return item.coverImageUrl;
+  AA.getItemImageUrl = function (item) {
+    if (!item) {
+      return "assets/img/item-placeholder.svg";
     }
-
-    const isInPages = window.location.pathname.includes("/pages/");
-    const base = isInPages ? "../" : "";
-    return base + "assets/img/item-placeholder.png";
-  }
+  
+    // Prefer coverImageUrl, but fall back to old imageUrl field if present
+    const url = (item.coverImageUrl || item.imageUrl || "").trim();
+  
+    if (!url) {
+      return "assets/img/item-placeholder.svg";
+    }
+    return url;
+  };
 
   // ----------------- navigation -----------------
 
