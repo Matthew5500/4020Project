@@ -1,3 +1,5 @@
+// assets/js/sell.js
+
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
   if (!user) return;
@@ -12,45 +14,111 @@ document.addEventListener("DOMContentLoaded", () => {
     msg.textContent = "";
 
     const fd = new FormData(form);
+
+    // --- read basic fields ---
+    const title = (fd.get("title") || "").trim();
+    const description = (fd.get("description") || "").trim();
+    const category = fd.get("category") || "";
+    const conditionCode = fd.get("conditionCode") || "USED";
+    const coverImageUrl = (fd.get("coverImageUrl") || "").trim();
+    const auctionType = fd.get("auctionType") || "FORWARD";
+
     const startingPrice = Number(fd.get("startingPrice"));
-    const minimumPrice = fd.get("minimumPrice")
-      ? Number(fd.get("minimumPrice"))
-      : null;
+    const minimumPriceRaw = fd.get("minimumPrice");
+    const minimumPrice =
+      minimumPriceRaw !== null && minimumPriceRaw !== ""
+        ? Number(minimumPriceRaw)
+        : null;
+
+    const quantityRaw = fd.get("quantity");
+    const quantity =
+      quantityRaw !== null && quantityRaw !== ""
+        ? Number(quantityRaw)
+        : 1;
+
+    const endTimeRaw = fd.get("endTime");
+    const endTime = endTimeRaw ? new Date(endTimeRaw).toISOString() : null;
+
+    // --- shipping fields from the form (these are the names in sell.html) ---
+    const shipCostStdRaw = fd.get("shipCostStd");
+    const shipCostExpRaw = fd.get("shipCostExp");
+    const shipDaysRaw = fd.get("shipDays");
+
+    const shipCostStd =
+      shipCostStdRaw !== null && shipCostStdRaw !== ""
+        ? Number(shipCostStdRaw)
+        : 0;
+
+    const shipCostExp =
+      shipCostExpRaw !== null && shipCostExpRaw !== ""
+        ? Number(shipCostExpRaw)
+        : 0;
+
+    const shipDays =
+      shipDaysRaw !== null && shipDaysRaw !== ""
+        ? Number(shipDaysRaw)
+        : null;
+
+    // --- very light validation (keep it simple) ---
+    if (!title || Number.isNaN(startingPrice)) {
+      msg.textContent =
+        "Please provide at least a title and a valid starting price.";
+      return;
+    }
 
     const payload = {
       sellerId: user.userId,
-      title: fd.get("title"),
-      description: fd.get("description"),
+      title,
+      description,
+      category,
+      conditionCode,
+      coverImageUrl: coverImageUrl || null,
+      auctionType,
       startingPrice,
       minimumPrice,
-      auctionType: fd.get("auctionType") || "FORWARD",
+      endTime,
+      quantity,
+      // We still send shipping to the backend even if it ignores it.
+      shipCostStd,
+      shipCostExp,
+      shipDays,
     };
-
-    const endTime = fd.get("endTime");
-    if (endTime) {
-      payload.endTime = endTime;
-    }
-
-    // extra fields to align with DB structure (optional for mid-tier)
-    payload.category = fd.get("category") || null;
-    payload.conditionCode = fd.get("conditionCode") || "USED";
-    payload.coverImageUrl = fd.get("coverImageUrl") || null;
-    payload.shipCostStd = fd.get("shipCostStd") || null;
-    payload.shipCostExp = fd.get("shipCostExp") || null;
-    payload.shipDays = fd.get("shipDays") || null;
-    payload.quantity = fd.get("quantity") || 1;
 
     try {
       const created = await AA.api("/items", {
         method: "POST",
         body: payload,
       });
+
+      // --- FRONT-END ONLY: remember shipping for this itemId ---
+      try {
+        const raw = localStorage.getItem("aaShippingOverrides");
+        let overrides = {};
+        if (raw) {
+          overrides = JSON.parse(raw);
+        }
+
+        overrides[String(created.itemId)] = {
+          baseShipping: shipCostStd,
+          expShipping: shipCostExp,
+          shippingDays: shipDays,
+        };
+
+        localStorage.setItem(
+          "aaShippingOverrides",
+          JSON.stringify(overrides)
+        );
+      } catch (e) {
+        console.warn("Could not store shipping overrides:", e);
+      }
+
       msg.textContent = "Auction created successfully.";
       window.location.href = `item.html?id=${encodeURIComponent(
         created.itemId
       )}`;
     } catch (err) {
-      msg.textContent = "Creation failed: " + err.message;
+      console.error(err);
+      msg.textContent = "Creation failed: " + (err.message || "Bad request");
     }
   });
 });
