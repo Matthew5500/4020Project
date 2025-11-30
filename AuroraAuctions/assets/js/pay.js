@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     elTitle.textContent = checkout.title || "Unknown item";
   }
 
-  // FIX: use winningPrice (with a fallback to finalPrice if present)
+  // Winning price
   if (elPrice)
     elPrice.textContent = AA.formatMoney(
       checkout.winningPrice ?? checkout.finalPrice ?? 0
@@ -97,12 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
     elExpPrice.textContent = AA.formatMoney(expShipping || 0);
   }
 
+  // NEW: nice, compact ship time text
   if (elShipTime) {
     if (typeof shippingDays === "number") {
-      elShipTime.textContent = `The item will be shipped in approximately ${shippingDays} day(s).`;
+      elShipTime.textContent = `${shippingDays} day(s)`;
     } else {
-      elShipTime.textContent =
-        "The item will be shipped in a few days (shipping time not specified).";
+      elShipTime.textContent = "Not specified";
     }
   }
 
