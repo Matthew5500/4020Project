@@ -1,115 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Aurora Auctions – Payment</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../assets/css/styles.css" />
-</head>
-<body>
-  <header class="aa-header">
-    <div class="aa-logo">
-      <a href="../index.html">Aurora Auctions</a>
-    </div>
-    <nav class="aa-nav">
-      <a href="../index.html">Home</a>
-      <a href="browse.html">Browse</a>
-      <a href="sell.html">Sell</a>
-      <a href="checkout.html">Checkout</a>
-      <button id="nav-logout" class="aa-link-button">Logout</button>
-    </nav>
-  </header>
-
-  <main class="aa-main">
-    <section class="aa-section">
-      <div class="aa-page-title">
-        <h1>Payment</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Aurora Auctions – Payment</title>
+    <link rel="stylesheet" href="../assets/css/styles.css" />
+  </head>
+  <body class="aa-body">
+    <header class="aa-nav">
+      <div class="aa-nav-left">
+        <a href="../index.html" class="aa-logo">Aurora Auctions</a>
       </div>
+      <nav class="aa-nav-right">
+        <a href="../index.html">Home</a>
+        <a href="browse.html">Browse</a>
+        <a href="sell.html">Sell</a>
+        <a href="checkout.html">Checkout</a>
+        <button id="nav-logout" class="aa-link-button hidden">Logout</button>
+      </nav>
+    </header>
 
-      <div class="aa-grid-2">
-        <!-- Left: order summary -->
-        <div class="aa-card">
-          <h2>Order summary</h2>
+    <main class="aa-main">
+      <section class="aa-section">
+        <h1>Payment</h1>
 
-          <p><strong>Item:</strong> <span id="pay-item-title">–</span></p>
-          <p><strong>Winning price:</strong> <span id="pay-winning-price">$0.00</span></p>
+        <div class="aa-grid aa-grid-2">
+          <!-- Order summary -->
+          <div class="aa-card">
+            <h2>Order summary</h2>
 
-          <p>
-            <strong id="pay-ship-regular-label">Shipping (regular):</strong>
-            <span id="pay-ship-regular">$0.00</span>
-          </p>
+            <p><strong>Item:</strong> <span id="pay-item-title">–</span></p>
+            <p>
+              <strong>Winning price:</strong>
+              <span id="pay-winning-price">$0.00</span>
+            </p>
 
-          <div class="aa-form-row">
-            <label for="pay-expedited"
-              style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input
-                type="checkbox"
-                id="pay-expedited"
-                style="width:16px; height:16px;"
-              />
-              <span id="pay-expedited-label" class="aa-muted">
-                <strong>Expedited shipping:</strong>
-                <span id="pay-exp-price">$0.00</span>
-              </span>
-            </label>
+            <p>
+              <strong id="pay-ship-regular-label">Shipping (regular):</strong>
+              <span id="pay-ship-regular">$0.00</span>
+            </p>
+
+            <!-- New, cleaner expedited row -->
+            <p>
+              <strong>Expedited shipping:</strong>
+              <span id="pay-exp-price">$0.00</span>
+              <label
+                for="pay-expedited"
+                id="pay-expedited-label"
+                style="
+                  margin-left: 1rem;
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 0.35rem;
+                  cursor: pointer;
+                "
+              >
+                <span class="aa-muted small">Use expedited</span>
+                <input
+                  type="checkbox"
+                  id="pay-expedited"
+                  style="width: 16px; height: 16px"
+                />
+              </label>
+            </p>
+
+            <p>
+              <strong>Total (item + shipping):</strong>
+              <span id="pay-total">$0.00</span>
+            </p>
+
+            <p id="pay-shipping-time" class="aa-muted small">
+              The item will be shipped in a few days (shipping time not
+              specified).
+            </p>
           </div>
 
-          <p>
-            <strong>Total (item + shipping):</strong>
-            <span id="pay-total">$0.00</span>
-          </p>
+          <!-- Billing & payment form -->
+          <div class="aa-card">
+            <h2>Billing &amp; Shipping</h2>
 
-          <p id="pay-shipping-time" class="aa-muted small">
-            The item will be shipped in a few days (shipping time not specified).
-          </p>
+            <p><strong>User:</strong> <span id="pay-user-name">–</span></p>
+            <p>
+              <strong>Address:</strong>
+              <span id="pay-user-address">No address on file.</span>
+            </p>
+
+            <h3>Credit / Debit Card</h3>
+
+            <form id="pay-form" class="aa-form">
+              <div class="aa-form-row">
+                <label for="card-number">Card number</label>
+                <input
+                  type="text"
+                  id="card-number"
+                  inputmode="numeric"
+                  autocomplete="cc-number"
+                  placeholder="1234 5678 9012 3456"
+                  required
+                />
+              </div>
+
+              <div class="aa-form-row">
+                <label for="card-name">Name on card</label>
+                <input
+                  type="text"
+                  id="card-name"
+                  autocomplete="cc-name"
+                  required
+                />
+              </div>
+
+              <div class="aa-form-row aa-form-row-inline">
+                <div>
+                  <label for="card-expiry">Expiry (MM/YY)</label>
+                  <input
+                    type="text"
+                    id="card-expiry"
+                    inputmode="numeric"
+                    autocomplete="cc-exp"
+                    placeholder="08/28"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="card-cvv">CVV</label>
+                  <input
+                    type="password"
+                    id="card-cvv"
+                    inputmode="numeric"
+                    autocomplete="cc-csc"
+                    placeholder="123"
+                    required
+                  />
+                </div>
+              </div>
+
+              <p id="pay-error" class="aa-error small"></p>
+
+              <button type="submit" class="aa-btn primary">
+                Pay &amp; Confirm Order
+              </button>
+            </form>
+          </div>
         </div>
+      </section>
+    </main>
 
-        <!-- Right: billing + card form -->
-        <div class="aa-card">
-          <h2>Billing &amp; Shipping</h2>
-
-          <p><strong>User:</strong> <span id="pay-user-name">–</span></p>
-          <p><strong>Address:</strong> <span id="pay-user-address">–</span></p>
-
-          <h3>Credit / Debit Card</h3>
-
-          <form id="pay-form" class="aa-form">
-            <label>
-              Card number
-              <input type="text" id="card-number" autocomplete="cc-number" />
-            </label>
-
-            <label>
-              Name on card
-              <input type="text" id="card-name" autocomplete="cc-name" />
-            </label>
-
-            <div class="aa-form-row">
-              <label>
-                Expiry (MM/YY)
-                <input type="text" id="card-expiry" placeholder="MM/YY" />
-              </label>
-              <label>
-                CVV
-                <input type="password" id="card-cvv" />
-              </label>
-            </div>
-
-            <p id="pay-error" class="aa-error"></p>
-
-            <button type="submit" class="aa-btn primary">Pay Now</button>
-            <a href="browse.html" class="aa-btn secondary">Cancel</a>
-          </form>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="aa-footer">
-    <span>ITEC 4020 • Aurora Auctions</span>
-  </footer>
-
-  <script src="../assets/js/common.js"></script>
-  <script src="../assets/js/pay.js"></script>
-</body>
+    <script src="../assets/js/common.js"></script>
+    <script src="../assets/js/pay.js"></script>
+  </body>
 </html>
