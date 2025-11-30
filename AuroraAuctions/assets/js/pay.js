@@ -1,4 +1,5 @@
 // assets/js/pay.js
+// Handles UC5: payment for a won auction item.
 
 document.addEventListener("DOMContentLoaded", () => {
   const user = AA.requireLogin();
@@ -29,207 +30,159 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // ----- DOM elements -----
+  // ------------ DOM elements ------------
   const elTitle = document.getElementById("pay-item-title");
   const elPrice = document.getElementById("pay-winning-price");
   const elShipRegular = document.getElementById("pay-ship-regular");
-  const elShipTime = document.getElementById("pay-shipping-time");
-  const elUserName = document.getElementById("pay-user-name");
-  const elUserAddress = document.getElementById("pay-user-address");
-  const elExpCheckbox = document.getElementById("pay-expedited");
-  const elExpLabel = document.getElementById("pay-expedited-label");
-  const elExpPrice = document.getElementById("pay-exp-price");
+  const elShipExp = document.getElementById("pay-ship-expedited");
   const elTotal = document.getElementById("pay-total");
-  const elForm = document.getElementById("pay-form");
-  const elError = document.getElementById("pay-error");
+  const elShipDays = document.getElementById("pay-ship-days");
 
-  const elCardNumber = document.getElementById("card-number");
-  const elCardName = document.getElementById("card-name");
-  const elCardExpiry = document.getElementById("card-expiry");
-  const elCardCvv = document.getElementById("card-cvv");
+  const chkExpedited = document.getElementById("pay-expedited");
+  const lblExpedited = document.getElementById("pay-expedited-label");
 
-  // ----- base shipping values from checkout -----
+  const form = document.getElementById("pay-form");
+
+  // ------------ Shipping overrides ------------
+  // If the seller created the item via Sell page, we saved shipping settings
+  // in localStorage["aaShippingOverrides"] keyed by itemId.
+  try {
+    const rawOverrides = localStorage.getItem("aaShippingOverrides") || "{}";
+    const overrides = JSON.parse(rawOverrides);
+    const key = String(checkout.itemId);
+    const o = overrides[key];
+
+    if (o) {
+      // Override checkout values with seller-provided data
+      if (typeof o.baseShipping === "number") checkout.baseShipping = o.baseShipping;
+      if (typeof o.expShipping === "number") checkout.expShipping = o.expShipping;
+      if (typeof o.shippingDays === "number") checkout.shippingDays = o.shippingDays;
+    }
+  } catch (err) {
+    console.warn("Failed to load shipping overrides:", err);
+  }
+
+  // ------------ Helper: mark global 'paid' flag ------------
+  function markItemPaid(itemId) {
+    if (itemId == null) return;
+    try {
+      const raw = localStorage.getItem("aaPaidItems") || "[]";
+      let arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) arr = [];
+      const key = String(itemId);
+      if (!arr.includes(key)) {
+        arr.push(key);
+      }
+      localStorage.setItem("aaPaidItems", JSON.stringify(arr));
+    } catch (err) {
+      console.warn("Failed to mark item as paid:", err);
+    }
+  }
+
+  // ------------ Display initial values ------------
+  const winningPrice = Number(checkout.winningPrice || 0);
   let baseShipping = Number(checkout.baseShipping || 0);
   let expShipping = Number(checkout.expShipping || 0);
-  let shippingDays =
-    typeof checkout.shippingDays === "number"
-      ? checkout.shippingDays
-      : null;
+  const shippingDays = checkout.shippingDays ?? null;
 
-  // If we created overrides when listing the item, apply them
-  try {
-    const rawOverrides = localStorage.getItem("aaShippingOverrides");
-    if (rawOverrides) {
-      const overrides = JSON.parse(rawOverrides);
-      const override = overrides[String(checkout.itemId)];
-      if (override) {
-        if (override.baseShipping != null) {
-          baseShipping = Number(override.baseShipping);
-        }
-        if (override.expShipping != null) {
-          expShipping = Number(override.expShipping);
-        }
-        if (override.shippingDays != null) {
-          shippingDays = override.shippingDays;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Could not read shipping overrides:", e);
-  }
+  let useExpedited = Boolean(checkout.expeditedSelected);
 
-  // ----- populate UI -----
-  if (elTitle) elTitle.textContent = checkout.title || "Unknown item";
-
-  const winningPrice =
-    Number(checkout.winningPrice ?? checkout.finalPrice ?? 0);
-
+  if (elTitle) elTitle.textContent = checkout.title || `Item #${checkout.itemId}`;
   if (elPrice) elPrice.textContent = AA.formatMoney(winningPrice);
-  if (elShipRegular)
-    elShipRegular.textContent = AA.formatMoney(baseShipping || 0);
-  if (elExpPrice)
-    elExpPrice.textContent = AA.formatMoney(expShipping || 0);
+  if (elShipRegular) elShipRegular.textContent = AA.formatMoney(baseShipping);
+  if (elShipExp) elShipExp.textContent = AA.formatMoney(expShipping);
 
-  if (elShipTime) {
-    if (typeof shippingDays === "number") {
-      elShipTime.textContent = `${shippingDays} day(s)`;
+  // Disable expedited when there is no extra cost defined
+  if (chkExpedited && lblExpedited) {
+    if (!expShipping || expShipping <= 0) {
+      chkExpedited.checked = false;
+      chkExpedited.disabled = true;
+      lblExpedited.classList.add("aa-muted");
     } else {
-      elShipTime.textContent = "Not specified";
+      chkExpedited.checked = useExpedited;
+      chkExpedited.disabled = false;
+      lblExpedited.classList.remove("aa-muted");
     }
   }
 
-  if (elUserName) {
-    const nameParts = [];
-    if (user.firstName) nameParts.push(user.firstName);
-    if (user.lastName) nameParts.push(user.lastName);
-    const full =
-      nameParts.join(" ") || user.username || `user #${user.userId}`;
-    elUserName.textContent = full;
-  }
-
-  if (elUserAddress) {
-    elUserAddress.textContent = "No address on file (from Sign-Up).";
-  }
-
-  const hasExp = expShipping > 0;
-  if (elExpCheckbox) {
-    elExpCheckbox.disabled = !hasExp;
-    elExpCheckbox.checked = hasExp && !!checkout.expeditedSelected;
-  }
-  if (elExpLabel && !hasExp) {
-    elExpLabel.classList.add("aa-muted");
+  if (elShipDays) {
+    if (shippingDays == null || shippingDays === 0) {
+      elShipDays.textContent = "Not specified";
+    } else {
+      elShipDays.textContent = `${shippingDays} day(s)`;
+    }
   }
 
   function recalcTotal() {
-    const useExp =
-      elExpCheckbox && elExpCheckbox.checked && hasExp;
-    const ship = useExp ? expShipping : baseShipping;
+    const ship = useExpedited ? expShipping : baseShipping;
     const total = winningPrice + ship;
-    if (elTotal) elTotal.textContent = AA.formatMoney(total);
+    if (elTotal) {
+      elTotal.textContent = AA.formatMoney(total);
+    }
   }
 
-  if (elExpCheckbox) {
-    elExpCheckbox.addEventListener("change", () => {
-      checkout.expeditedSelected = !!elExpCheckbox.checked;
+  recalcTotal();
+
+  if (chkExpedited) {
+    chkExpedited.addEventListener("change", () => {
+      useExpedited = chkExpedited.checked;
+      checkout.expeditedSelected = useExpedited;
       sessionStorage.setItem("checkout", JSON.stringify(checkout));
       recalcTotal();
     });
   }
 
-  recalcTotal();
+  // ------------ Form submit (fake payment) ------------
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  // ----- fake payment submission -----
-  if (elForm) {
-    elForm.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      if (elError) elError.textContent = "";
+      const formData = new FormData(form);
+      const card = (formData.get("cardNumber") || "").toString().trim();
+      const name = (formData.get("cardName") || "").toString().trim();
+      const expiry = (formData.get("cardExpiry") || "").toString().trim();
+      const cvv = (formData.get("cardCvv") || "").toString().trim();
 
-      const cardNumber = (elCardNumber?.value || "").trim();
-      const cardName = (elCardName?.value || "").trim();
-      const cardExpiry = (elCardExpiry?.value || "").trim();
-      const cardCvv = (elCardCvv?.value || "").trim();
-
-      if (
-        !cardNumber ||
-        !cardName ||
-        !cardExpiry ||
-        !cardCvv ||
-        cardNumber.length < 8
-      ) {
-        if (elError) {
-          elError.textContent =
-            "Please fill in card details (this is only a simulated payment).";
-        }
+      if (!card || !name || !expiry || !cvv) {
+        AA.showToast("Missing fields", "Please fill in all card details.", "error");
         return;
       }
 
       try {
-        const useExp =
-          elExpCheckbox && elExpCheckbox.checked && hasExp;
-
         const body = {
           payerId: user.userId,
           method: "CARD",
-          note: useExp
+          note: useExpedited
             ? "Expedited shipping selected"
             : "Regular shipping selected",
         };
 
-        const receipt = await AA.api(
-          `/items/${checkout.itemId}/pay`,
-          {
-            method: "POST",
-            body,
-          }
-        );
+        await AA.api(`/items/${encodeURIComponent(checkout.itemId)}/pay`, {
+          method: "POST",
+          body,
+        });
 
-        // Store receipt info for the receipt page
+        // Mark this item as paid globally so Checkout hides it
+        markItemPaid(checkout.itemId);
+
+        // Build a small receipt snapshot for the receipt.html page
         const lastReceipt = {
           itemId: checkout.itemId,
           itemTitle: checkout.title,
-          finalPrice: winningPrice,
+          winningPrice,
           baseShipping,
           expShipping,
           shippingDays,
-          expeditedSelected: useExp,
-          paidAt: receipt.paymentTime || null,
+          expeditedSelected: useExpedited,
+          paidAt: new Date().toISOString(),
         };
-        sessionStorage.setItem(
-          "lastReceipt",
-          JSON.stringify(lastReceipt)
-        );
+        sessionStorage.setItem("lastReceipt", JSON.stringify(lastReceipt));
 
-        // 🔹 Mark this item as paid in localStorage so Checkout can hide it
-        try {
-          let paidIds = [];
-          const rawPaid = localStorage.getItem("aaPaidItems");
-          if (rawPaid) {
-            paidIds = JSON.parse(rawPaid);
-            if (!Array.isArray(paidIds)) paidIds = [];
-          }
-          if (!paidIds.includes(checkout.itemId)) {
-            paidIds.push(checkout.itemId);
-            localStorage.setItem(
-              "aaPaidItems",
-              JSON.stringify(paidIds)
-            );
-          }
-        } catch (e) {
-          console.warn("Could not update aaPaidItems:", e);
-        }
-
-        AA.showToast("Payment successful. Showing receipt.", "success");
+        AA.showToast("Payment successful", "Redirecting to receipt…", "success");
         window.location.href = "receipt.html";
       } catch (err) {
         console.error("Payment failed:", err);
-        if (elError) {
-          elError.textContent =
-            "Payment failed. Please try again in a moment.";
-        }
-        AA.showToast(
-          "Payment failed: " + (err.message || "Server error"),
-          "error"
-        );
+        AA.showToast("Payment failed", err.message || String(err), "error");
       }
     });
   }
