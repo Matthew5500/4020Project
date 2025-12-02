@@ -15,10 +15,10 @@ window.AA = (function () {
   }
 
   function setUser(user) {
-    if (user) {
-      sessionStorage.setItem("user", JSON.stringify(user));
-    } else {
+    if (user == null) {
       sessionStorage.removeItem("user");
+    } else {
+      sessionStorage.setItem("user", JSON.stringify(user));
     }
   }
 
@@ -50,7 +50,8 @@ window.AA = (function () {
 
     const res = await fetch(url, init);
     const text = await res.text();
-    let data = null;
+
+    let data;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -75,15 +76,37 @@ window.AA = (function () {
     return `$${Number(n).toFixed(2)}`;
   }
 
+  // Treat server LocalDateTime values as UTC/Zulu when converting to JS Date.
+  // The backend now stores and compares endTime in UTC and sends values like
+  // "2025-11-30T17:00:00" (without timezone). If we call new Date(iso) directly,
+  // the browser interprets that in the *local* timezone, which causes the
+  // countdown to disagree with the backend. We fix this by appending "Z"
+  // when there is no timezone information so it is treated as UTC.
+  const SERVER_TZ_REGEX = /(Z|[+\-]\d{2}:?\d{2})$/i;
+
+  function parseServerDate(iso) {
+    if (!iso) return null;
+    const str = String(iso).trim();
+    if (!str) return null;
+
+    const candidate = SERVER_TZ_REGEX.test(str) ? str : str + "Z";
+    const d = new Date(candidate);
+    if (Number.isNaN(d.getTime())) {
+      return null;
+    }
+    return d;
+  }
+
   function formatDateTime(iso) {
-    if (!iso) return "—";
-    const d = new Date(iso);
+    const d = parseServerDate(iso);
+    if (!d) return "—";
     return d.toLocaleString();
   }
 
   function timeRemaining(iso) {
-    if (!iso) return "—";
-    const end = new Date(iso).getTime();
+    const d = parseServerDate(iso);
+    if (!d) return "—";
+    const end = d.getTime();
     const now = Date.now();
     const diff = end - now;
     if (diff <= 0) return "Ended";
@@ -106,17 +129,30 @@ window.AA = (function () {
    * - If the backend provides item.coverImageUrl, use that.
    * - Otherwise, fall back to your uploaded placeholder image.
    *
-   * Place your image at:
-   *   AuroraAuctions/assets/img/item-placeholder.png
+   * On pages under /pages/, we need one extra "../" to reach /assets/.
    */
   function getItemImageUrl(item) {
-    if (item && item.coverImageUrl) {
-      return item.coverImageUrl;
-    }
+    const url =
+      (item && (item.coverImageUrl || item.imageUrl || item.image)) || null;
+    const placeholder = "assets/img/item-placeholder.png";
 
     const isInPages = window.location.pathname.includes("/pages/");
-    const base = isInPages ? "../" : "";
-    return base + "assets/img/item-placeholder.png";
+    const basePrefix = isInPages ? "../" : "";
+
+    if (!url) {
+      return basePrefix + placeholder;
+    }
+
+    // If it's an absolute URL (http/https), just return it
+    if (/^https?:\/\//i.test(url)) {
+      return url;
+    }
+
+    // Otherwise treat it as relative to the site root
+    if (url.startsWith("/")) {
+      return url;
+    }
+    return basePrefix + url;
   }
 
   // ----------------- navigation -----------------
@@ -140,12 +176,23 @@ window.AA = (function () {
       }
     }
 
-    // Optional greeting link
-    if (loginLink && user) {
-      loginLink.textContent = `Hi, ${user.username}`;
+    // Update the header nav "Login" link if present
+    if (loginLink) {
+      if (user) {
+        loginLink.textContent = "Logout";
+        loginLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          setUser(null);
+          window.location.href = "../pages/login.html";
+        });
+      } else {
+        loginLink.textContent = "Login";
+      }
     }
 
-    // Hero button on the home page
+    // Update the home hero button:
+    //  - Logged out  => "Sign In / Sign Up" goes to login page.
+    //  - Logged in   => "Log Out" which logs out then goes to login page.
     if (heroAuthBtn) {
       if (user) {
         heroAuthBtn.textContent = "Log Out";
@@ -156,7 +203,10 @@ window.AA = (function () {
         });
       } else {
         heroAuthBtn.textContent = "Sign In / Sign Up";
-        heroAuthBtn.setAttribute("href", "pages/login.html");
+        heroAuthBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          window.location.href = "pages/login.html";
+        });
       }
     }
   }
@@ -173,25 +223,35 @@ window.AA = (function () {
 
       items.slice(0, 4).forEach((item) => {
         const card = document.createElement("article");
-        card.className = "aa-card-small";
+        card.className = "aa-card";
+
+        const price =
+          item.currentPrice ??
+          item.startingPrice ??
+          item.price ??
+          item.minimumPrice ??
+          0;
 
         const imgUrl = getItemImageUrl(item);
-        const price = item.currentPrice ?? item.startingPrice;
-        const itemId = item.id ?? item.itemId; // support both field names
 
         card.innerHTML = `
-          <div class="aa-card-image aa-item-image" style="margin-bottom: 0.75rem;">
-            <img src="${imgUrl}" alt="${item.title || "Item"}" />
-          </div>
-          <h3>${item.title || ""}</h3>
-          <p>${item.description || ""}</p>
-          <p><strong>${formatMoney(price)}</strong></p>
-          <p class="aa-muted small">
-            ${(item.auctionType || "").toUpperCase()} • ${(item.status || "").toUpperCase()}
-          </p>
-          <a class="aa-btn secondary" href="pages/item.html?id=${encodeURIComponent(
-            itemId
-          )}">View</a>
+          <a href="pages/item.html?id=${encodeURIComponent(
+            item.id ?? item.itemId
+          )}" class="aa-card-link">
+            <div class="aa-card-image-wrap">
+              <img src="${imgUrl}" alt="${item.title || "Item"}" />
+            </div>
+            <div class="aa-card-body">
+              <h3>${item.title || "Item"}</h3>
+              <p class="aa-muted small">
+                ${item.description ? item.description.substring(0, 80) : ""}
+              </p>
+              <p><strong>${formatMoney(price)}</strong></p>
+              <p class="aa-muted small">
+                ${item.auctionType || "FORWARD"} • ${item.status || "ACTIVE"}
+              </p>
+            </div>
+          </a>
         `;
 
         container.appendChild(card);
@@ -220,7 +280,9 @@ window.AA = (function () {
     }`;
     el.style.opacity = "1";
 
-    if (toastTimer) clearTimeout(toastTimer);
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+    }
     toastTimer = setTimeout(() => {
       el.style.opacity = "0";
     }, 4000);
