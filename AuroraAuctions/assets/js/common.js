@@ -77,11 +77,12 @@ window.AA = (function () {
   }
 
   // Treat server LocalDateTime values as UTC/Zulu when converting to JS Date.
-  // The backend now stores and compares endTime in UTC and sends values like
-  // "2025-11-30T17:00:00" (without timezone). If we call new Date(iso) directly,
-  // the browser interprets that in the *local* timezone, which causes the
-  // countdown to disagree with the backend. We fix this by appending "Z"
-  // when there is no timezone information so it is treated as UTC.
+  // The backend stores and compares date/times in UTC and sends values like
+  // "2025-12-02T01:24:19". If we call new Date(iso) directly, the browser
+  // interprets that as *local* time, which makes displayed times look
+  // several hours off. By appending "Z" when no timezone is present,
+  // we tell the browser "this is UTC", then toLocaleString() shows it
+  // in the user's local timezone.
   const SERVER_TZ_REGEX = /(Z|[+\-]\d{2}:?\d{2})$/i;
 
   function parseServerDate(iso) {
@@ -89,7 +90,10 @@ window.AA = (function () {
     const str = String(iso).trim();
     if (!str) return null;
 
+    // If there's already timezone info (e.g. "...Z" or "+05:00"),
+    // leave it alone; otherwise assume the server meant UTC.
     const candidate = SERVER_TZ_REGEX.test(str) ? str : str + "Z";
+
     const d = new Date(candidate);
     if (Number.isNaN(d.getTime())) {
       return null;
@@ -106,10 +110,12 @@ window.AA = (function () {
   function timeRemaining(iso) {
     const d = parseServerDate(iso);
     if (!d) return "—";
+
     const end = d.getTime();
     const now = Date.now();
     const diff = end - now;
     if (diff <= 0) return "Ended";
+
     const sec = Math.floor(diff / 1000);
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
