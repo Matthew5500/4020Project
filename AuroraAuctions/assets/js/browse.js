@@ -14,143 +14,140 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnMine = document.getElementById("btn-show-mine");
   const searchButton = searchForm ? searchForm.querySelector('button[type="submit"]') : null;
 
-  // Global timer handle for the countdown loop so we can reset it
+  let currentFilter = "active"; // "active" | "ended" | "mine" | "search"
+  let currentQuery = "";
   let countdownTimer = null;
 
-  /**
-   * Sets the visual "selected" state for the filter buttons.
-   * We swap their style between `aa-btn secondary` (highlighted)
-   * and `aa-btn ghost` (muted).
-   */
   function setFilterSelected(mode) {
-    const allButtons = [searchButton, btnActive, btnEnded, btnMine];
-    allButtons.forEach((btn) => {
-      if (!btn) return;
-      // keep base .aa-btn class, just toggle secondary/ghost
-      btn.classList.remove("secondary", "ghost");
-      btn.classList.add("ghost");
-    });
-
-    let selectedBtn = null;
-    if (mode === "search") selectedBtn = searchButton;
-    else if (mode === "active") selectedBtn = btnActive;
-    else if (mode === "ended") selectedBtn = btnEnded;
-    else if (mode === "mine") selectedBtn = btnMine;
-
-    if (selectedBtn) {
-      selectedBtn.classList.remove("ghost");
-      selectedBtn.classList.add("secondary");
+    currentFilter = mode;
+    if (btnActive) {
+      btnActive.classList.toggle("secondary", mode === "active");
+      btnActive.classList.toggle("ghost", mode !== "active");
+    }
+    if (btnEnded) {
+      btnEnded.classList.toggle("secondary", mode === "ended");
+      btnEnded.classList.toggle("ghost", mode !== "ended");
+    }
+    if (btnMine) {
+      btnMine.classList.toggle("secondary", mode === "mine");
+      btnMine.classList.toggle("ghost", mode !== "mine");
+    }
+    // Search has no dedicated button, but we could style the search button
+    if (searchButton) {
+      const isSearch = mode === "search";
+      searchButton.classList.toggle("secondary", isSearch);
+      searchButton.classList.toggle("ghost", !isSearch);
     }
   }
 
-  /**
-   * Loads items from the backend based on mode:
-   *  - "active": GET /api/items/active
-   *  - "ended":  GET /api/items/ended
-   *  - "search": GET /api/items/search?q=...
-   *  - "mine":   GET /api/items, then filter by sellerId on the client
-   */
-  async function loadItems(mode, query) {
-    let path = "/items/active";
-    const params = new URLSearchParams();
+  function renderRows(items) {
+    tbody.innerHTML = "";
 
-    switch (mode) {
-      case "search":
-        path = "/items/search";
-        if (query) params.set("q", query);
-        break;
-      case "ended":
-        path = "/items/ended";
-        break;
-      case "mine":
-        path = "/items"; // all items, will filter by sellerId client-side
-        break;
-      case "active":
-      default:
-        path = "/items/active";
-        break;
-    }
-
-    try {
-      const fullPath = params.toString() ? `${path}?${params}` : path;
-      let items = await AA.api(fullPath);
-
-      if (mode === "mine") {
-        items = items.filter((it) => it.sellerId === user.userId);
-      }
-
-      renderItems(items);
-      setupCountdown(); // start / restart live countdown after rendering
-    } catch (err) {
-      console.error("Failed to load items:", err);
-      AA.showToast("Failed to load items", err.message || "", "error");
-      if (tbody) {
-        tbody.innerHTML =
-          '<tr><td colspan="6" class="aa-muted">Error loading items.</td></tr>';
-      }
-      // stop any running countdown if we had an error
-      if (countdownTimer) {
-        clearInterval(countdownTimer);
-        countdownTimer = null;
-      }
-    }
-  }
-
-  function renderItems(items) {
-    if (!tbody) return;
-
-    if (!Array.isArray(items) || items.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="6" class="aa-muted">No items found.</td></tr>';
+    if (!items || items.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="6" class="aa-muted">No items found.</td>`;
+      tbody.appendChild(tr);
       return;
     }
-
-    tbody.innerHTML = "";
 
     items.forEach((item) => {
       const tr = document.createElement("tr");
 
-      const imgUrl = AA.getItemImageUrl(item);
-      const price = item.currentPrice ?? item.startingPrice;
-      const itemId = item.id ?? item.itemId;
+      const id = item.id ?? item.itemId ?? item.item_id ?? item.ID ?? item.ITEM_ID;
+      const price =
+        item.currentPrice ??
+        item.startingPrice ??
+        item.price ??
+        item.minimumPrice ??
+        0;
 
-      // Build the Ends / Remaining cell content
-      const isEnded = item.status === "ENDED";
+      const endTime = item.endTime || item.end_time || item.END_TIME || null;
+
+      const status = item.status || item.STATUS || "ACTIVE";
+      const auctionType = item.auctionType || item.AUCTION_TYPE || "FORWARD";
+
+      // Ends/Remaining column content
       let endsHtml = "—";
-
-      if (item.endTime) {
-        if (isEnded) {
-          // For ended auctions, just show the final end date/time
-          endsHtml = AA.formatDateTime(item.endTime);
+      if (endTime) {
+        if (status === "ENDED") {
+          // Show fixed end time only
+          endsHtml = AA.formatDateTime(endTime);
         } else {
           // For active auctions, show a live countdown
-          const initial = AA.timeRemaining(item.endTime);
-          endsHtml = `<span class="aa-end-countdown" data-end-time="${item.endTime}">${initial}</span>`;
+          const initial = AA.timeRemaining(endTime);
+          endsHtml = `<span class="aa-end-countdown" data-end-time="${endTime}">${initial}</span>`;
         }
       }
 
+      const imgUrl = AA.getItemImageUrl(item);
+      const title = item.title || "Item";
+
       tr.innerHTML = `
         <td>
-          <div style="display:flex; align-items:center; gap:0.75rem;">
-            <div class="aa-item-image" style="width:56px; flex-shrink:0;">
-              <img src="${imgUrl}" alt="${item.title || "Item"}" />
+          <div class="aa-item-cell">
+            <div class="aa-item-thumb">
+              <img src="${imgUrl}" alt="${title}" />
             </div>
-            <span>${item.title || ""}</span>
+            <div class="aa-item-main">
+              <div class="aa-item-title">${title}</div>
+              <div class="aa-item-desc aa-muted small">
+                ${item.description ? item.description.substring(0, 80) : ""}
+              </div>
+            </div>
           </div>
         </td>
+        <td>${auctionType}</td>
+        <td>${status}</td>
         <td>${AA.formatMoney(price)}</td>
-        <td>${(item.auctionType || "").toUpperCase()}</td>
-        <td>${(item.status || "").toUpperCase()}</td>
         <td>${endsHtml}</td>
         <td>
-          <a class="aa-btn secondary small" href="item.html?id=${encodeURIComponent(
-            itemId
-          )}">View</a>
+          <a href="item.html?id=${encodeURIComponent(
+            id
+          )}" class="aa-btn aa-btn-sm secondary">View</a>
         </td>
       `;
 
       tbody.appendChild(tr);
     });
+  }
+
+  async function loadItems(mode, query = "") {
+    tbody.innerHTML = `<tr><td colspan="6" class="aa-muted">Loading…</td></tr>`;
+
+    try {
+      let items = [];
+      if (mode === "active") {
+        items = await AA.api("/items/active");
+      } else if (mode === "ended") {
+        items = await AA.api("/items/ended");
+      } else if (mode === "search") {
+        items = await AA.api(`/items/search?q=${encodeURIComponent(query)}`);
+      } else if (mode === "mine") {
+        // Load all then filter by sellerId = current user
+        const all = await AA.api("/items");
+        items = all.filter((it) => {
+          const sellerId =
+            it.sellerId ??
+            it.seller_id ??
+            it.ownerId ??
+            it.owner_id ??
+            it.userId ??
+            it.user_id;
+          return Number(sellerId) === Number(user.userId);
+        });
+      }
+
+      renderRows(items);
+      setupCountdown();
+    } catch (err) {
+      console.error("Failed to load items:", err);
+      tbody.innerHTML = `<tr><td colspan="6" class="aa-muted">Failed to load items.</td></tr>`;
+      AA.showToast(
+        "Failed to load items",
+        err && err.message ? err.message : String(err),
+        "error"
+      );
+    }
   }
 
   /**
@@ -178,7 +175,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const iso = span.dataset.endTime;
         if (!iso) return;
 
-        const end = new Date(iso).getTime();
+        // Treat endTime as UTC: if there's no timezone in the string,
+        // append "Z" so the browser parses it as Zulu/UTC.
+        const end = new Date(
+          iso.endsWith("Z") || /(Z|[+\-]\d{2}:?\d{2})$/i.test(iso)
+            ? iso
+            : iso + "Z"
+        ).getTime();
+
         const diff = end - now;
 
         if (diff <= 0) {
