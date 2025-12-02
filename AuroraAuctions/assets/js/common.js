@@ -76,25 +76,16 @@ window.AA = (function () {
     return `$${Number(n).toFixed(2)}`;
   }
 
-  // Treat server LocalDateTime values as UTC/Zulu when converting to JS Date.
-  // The backend stores and compares date/times in UTC and sends values like
-  // "2025-12-02T01:24:19". If we call new Date(iso) directly, the browser
-  // interprets that as *local* time, which makes displayed times look
-  // several hours off. By appending "Z" when no timezone is present,
-  // we tell the browser "this is UTC", then toLocaleString() shows it
-  // in the user's local timezone.
-  const SERVER_TZ_REGEX = /(Z|[+\-]\d{2}:?\d{2})$/i;
-
+  // Interpret server LocalDateTime values as *local* time.
+  // The backend sends values like "2025-12-02T01:24:19" that are already
+  // in the server's local timezone (Eastern for your environment), so we let
+  // the browser treat them as local as well.
   function parseServerDate(iso) {
     if (!iso) return null;
     const str = String(iso).trim();
     if (!str) return null;
 
-    // If there's already timezone info (e.g. "...Z" or "+05:00"),
-    // leave it alone; otherwise assume the server meant UTC.
-    const candidate = SERVER_TZ_REGEX.test(str) ? str : str + "Z";
-
-    const d = new Date(candidate);
+    const d = new Date(str); // no "Z" added – treat as local time
     if (Number.isNaN(d.getTime())) {
       return null;
     }
