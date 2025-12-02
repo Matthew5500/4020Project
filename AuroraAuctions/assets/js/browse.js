@@ -175,14 +175,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const iso = span.dataset.endTime;
         if (!iso) return;
 
-        // Treat endTime as UTC: if there's no timezone in the string,
-        // append "Z" so the browser parses it as Zulu/UTC.
-        const end = new Date(
-          iso.endsWith("Z") || /(Z|[+\-]\d{2}:?\d{2})$/i.test(iso)
-            ? iso
-            : iso + "Z"
-        ).getTime();
+        // Interpret endTime as local time (same convention as AA.parseServerDate)
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return;
 
+        const end = d.getTime();
         const diff = end - now;
 
         if (diff <= 0) {
